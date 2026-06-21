@@ -159,7 +159,7 @@ function DevisEditor() {
           <Badge variant="secondary" className="ml-2">{devis.status}</Badge>
         </div>
         <div className="flex flex-wrap gap-2">
-          <PdfActions devis={pdfDevis} profile={profile} client={fullClient(clients, devis.client_id, allClients)} setOpen={setPreviewOpen} />
+          <PdfActions devis={pdfDevis} profile={profile} client={fullClientData} setOpen={setPreviewOpen} />
           <Button variant="outline" onClick={() => save("sent")} disabled={saving}>Mark sent</Button>
           <Button variant="outline" onClick={() => save("accepted")} disabled={saving}>Accepted</Button>
           <Button variant="outline" onClick={() => save("declined")} disabled={saving}>Declined</Button>
@@ -275,7 +275,7 @@ function DevisEditor() {
         </Card>
       </div>
 
-      <PreviewDialog open={previewOpen} setOpen={setPreviewOpen} devis={pdfDevis} profile={profile} client={fullClient(clients, devis.client_id, allClients)} />
+      <PreviewDialog open={previewOpen} setOpen={setPreviewOpen} devis={pdfDevis} profile={profile} client={fullClientData} />
     </div>
   );
 }
@@ -289,16 +289,6 @@ const Row = ({ k, v, bold }: { k: string; v: string; bold?: boolean }) => (
     <span>{k}</span><span className="tabular-nums">{v}</span>
   </div>
 );
-
-// fetch full client object on demand for PDF
-const allClients: Record<string, PdfClient> = {};
-function fullClient(_list: Client[], id: string | null, cache: Record<string, PdfClient>): PdfClient {
-  if (!id) return null;
-  if (cache[id]) return cache[id];
-  // populate async
-  supabase.from("clients").select("*").eq("id", id).maybeSingle().then(({ data }) => { if (data) cache[id] = data as PdfClient; });
-  return cache[id] ?? null;
-}
 
 function NewClientDialog({ open, setOpen, onCreated }: { open: boolean; setOpen: (b: boolean) => void; onCreated: (c: Client) => void }) {
   const [name, setName] = useState("");
