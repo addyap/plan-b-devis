@@ -136,7 +136,7 @@ function DevisEditor() {
     toast.success("Saved");
   };
 
-  const currentClient = clients.find((c) => c.id === devis.client_id);
+  
 
   const pdfDevis: PdfDevis = {
     devis_number: devis.devis_number, issue_date: devis.issue_date, validity_until: devis.validity_until,
