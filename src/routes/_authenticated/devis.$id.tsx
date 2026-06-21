@@ -192,7 +192,7 @@ function DevisEditor() {
               <Label className="text-xs">Issue date</Label>
               <Input type="date" value={devis.issue_date} onChange={(e) => {
                 const v = e.target.value;
-                update({ issue_date: v, validity_until: addDays(v, profile.default_payment_terms ? 90 : 90) });
+                update({ issue_date: v, validity_until: addDays(v, (profile as any).default_validity_days ?? 90) });
               }} />
             </div>
             <div className="space-y-1.5">
