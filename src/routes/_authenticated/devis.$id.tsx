@@ -41,10 +41,18 @@ function DevisEditor() {
   const [clients, setClients] = useState<Client[]>([]);
   const [profile, setProfile] = useState<PdfProfile | null>(null);
   const [presets, setPresets] = useState<{ id: string; label_en: string; label_fr: string; default_unit: string | null; default_rate: number | null }[]>([]);
+  const [fullClientData, setFullClientData] = useState<PdfClient>(null);
   const [saving, setSaving] = useState(false);
   const [newClientOpen, setNewClientOpen] = useState(false);
   const [presetsOpen, setPresetsOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+
+  useEffect(() => {
+    if (!devis?.client_id) { setFullClientData(null); return; }
+    supabase.from("clients").select("*").eq("id", devis.client_id).maybeSingle().then(({ data }) => {
+      setFullClientData((data as PdfClient) ?? null);
+    });
+  }, [devis?.client_id]);
 
   useEffect(() => {
     (async () => {
