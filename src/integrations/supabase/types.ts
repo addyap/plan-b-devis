@@ -1,0 +1,437 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
+  public: {
+    Tables: {
+      business_profile: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          ape_code: string | null
+          bic: string | null
+          brand_color: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          decennale_insurer: string | null
+          default_footer_note: string | null
+          default_payment_terms: string | null
+          default_validity_days: number
+          iban: string | null
+          id: string
+          insurance_geographic_cover: string | null
+          late_penalty_terms: string | null
+          legal_form: string | null
+          legal_name: string | null
+          logo_url: string | null
+          postcode: string | null
+          rc_pro_insurer: string | null
+          rc_pro_policy: string | null
+          rcs_or_rm: string | null
+          siret: string | null
+          trading_name: string | null
+          updated_at: string
+          vat_number: string | null
+          vat_rate: number
+          vat_status: Database["public"]["Enums"]["vat_status"]
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          ape_code?: string | null
+          bic?: string | null
+          brand_color?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          decennale_insurer?: string | null
+          default_footer_note?: string | null
+          default_payment_terms?: string | null
+          default_validity_days?: number
+          iban?: string | null
+          id?: string
+          insurance_geographic_cover?: string | null
+          late_penalty_terms?: string | null
+          legal_form?: string | null
+          legal_name?: string | null
+          logo_url?: string | null
+          postcode?: string | null
+          rc_pro_insurer?: string | null
+          rc_pro_policy?: string | null
+          rcs_or_rm?: string | null
+          siret?: string | null
+          trading_name?: string | null
+          updated_at?: string
+          vat_number?: string | null
+          vat_rate?: number
+          vat_status?: Database["public"]["Enums"]["vat_status"]
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          ape_code?: string | null
+          bic?: string | null
+          brand_color?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          decennale_insurer?: string | null
+          default_footer_note?: string | null
+          default_payment_terms?: string | null
+          default_validity_days?: number
+          iban?: string | null
+          id?: string
+          insurance_geographic_cover?: string | null
+          late_penalty_terms?: string | null
+          legal_form?: string | null
+          legal_name?: string | null
+          logo_url?: string | null
+          postcode?: string | null
+          rc_pro_insurer?: string | null
+          rc_pro_policy?: string | null
+          rcs_or_rm?: string | null
+          siret?: string | null
+          trading_name?: string | null
+          updated_at?: string
+          vat_number?: string | null
+          vat_rate?: number
+          vat_status?: Database["public"]["Enums"]["vat_status"]
+        }
+        Relationships: []
+      }
+      clients: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          contact_name: string | null
+          country: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          postcode: string | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          contact_name?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          postcode?: string | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          contact_name?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          postcode?: string | null
+        }
+        Relationships: []
+      }
+      devis: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          deposit_amount: number | null
+          devis_number: string
+          id: string
+          issue_date: string
+          language: Database["public"]["Enums"]["devis_language"]
+          notes: string | null
+          project_description: string | null
+          project_duration: string | null
+          project_start: string | null
+          status: Database["public"]["Enums"]["devis_status"]
+          subtotal_ht: number
+          total_ttc: number
+          updated_at: string
+          validity_until: string
+          vat_amount: number
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          deposit_amount?: number | null
+          devis_number: string
+          id?: string
+          issue_date?: string
+          language?: Database["public"]["Enums"]["devis_language"]
+          notes?: string | null
+          project_description?: string | null
+          project_duration?: string | null
+          project_start?: string | null
+          status?: Database["public"]["Enums"]["devis_status"]
+          subtotal_ht?: number
+          total_ttc?: number
+          updated_at?: string
+          validity_until: string
+          vat_amount?: number
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          deposit_amount?: number | null
+          devis_number?: string
+          id?: string
+          issue_date?: string
+          language?: Database["public"]["Enums"]["devis_language"]
+          notes?: string | null
+          project_description?: string | null
+          project_duration?: string | null
+          project_start?: string | null
+          status?: Database["public"]["Enums"]["devis_status"]
+          subtotal_ht?: number
+          total_ttc?: number
+          updated_at?: string
+          validity_until?: string
+          vat_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "devis_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      devis_lines: {
+        Row: {
+          description: string
+          devis_id: string
+          id: string
+          line_total_ht: number
+          quantity: number
+          sort_order: number
+          unit: string | null
+          unit_price_ht: number
+        }
+        Insert: {
+          description: string
+          devis_id: string
+          id?: string
+          line_total_ht?: number
+          quantity?: number
+          sort_order?: number
+          unit?: string | null
+          unit_price_ht?: number
+        }
+        Update: {
+          description?: string
+          devis_id?: string
+          id?: string
+          line_total_ht?: number
+          quantity?: number
+          sort_order?: number
+          unit?: string | null
+          unit_price_ht?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "devis_lines_devis_id_fkey"
+            columns: ["devis_id"]
+            isOneToOne: false
+            referencedRelation: "devis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_presets: {
+        Row: {
+          default_rate: number | null
+          default_unit: string | null
+          description: string | null
+          id: string
+          label_en: string
+          label_fr: string
+          sort_order: number | null
+        }
+        Insert: {
+          default_rate?: number | null
+          default_unit?: string | null
+          description?: string | null
+          id?: string
+          label_en: string
+          label_fr: string
+          sort_order?: number | null
+        }
+        Update: {
+          default_rate?: number | null
+          default_unit?: string | null
+          description?: string | null
+          id?: string
+          label_en?: string
+          label_fr?: string
+          sort_order?: number | null
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      next_devis_number: { Args: never; Returns: string }
+    }
+    Enums: {
+      devis_language: "en" | "fr"
+      devis_status: "draft" | "sent" | "accepted" | "declined" | "expired"
+      vat_status: "franchise_293b" | "tva_registered"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      devis_language: ["en", "fr"],
+      devis_status: ["draft", "sent", "accepted", "declined", "expired"],
+      vat_status: ["franchise_293b", "tva_registered"],
+    },
+  },
+} as const
