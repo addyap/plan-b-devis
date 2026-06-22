@@ -133,6 +133,12 @@ function SettingsPage() {
       </Card>
 
       <Card className="p-6 space-y-4">
+        <h2 className="text-lg font-semibold">Email</h2>
+        <F label="Sender email (must be on a Resend-verified domain)" v={p.sender_email} on={(v) => update({ sender_email: v })} />
+        <p className="text-xs text-muted-foreground">Used as the From address when sending devis &amp; factures.</p>
+      </Card>
+
+      <Card className="p-6 space-y-4">
         <h2 className="text-lg font-semibold">Devis defaults</h2>
         <div className="space-y-1.5">
           <Label className="text-xs">Default validity (days)</Label>
