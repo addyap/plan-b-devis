@@ -42,6 +42,7 @@ type Profile = {
   default_footer_note: string | null;
   logo_url: string | null;
   brand_color: string | null;
+  sender_email: string | null;
 };
 
 function SettingsPage() {
