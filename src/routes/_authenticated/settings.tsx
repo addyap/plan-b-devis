@@ -42,6 +42,7 @@ type Profile = {
   default_footer_note: string | null;
   logo_url: string | null;
   brand_color: string | null;
+  sender_email: string | null;
 };
 
 function SettingsPage() {
@@ -129,6 +130,12 @@ function SettingsPage() {
       <Card className="p-6 space-y-4">
         <h2 className="text-lg font-semibold">Bank</h2>
         <Row><F label="IBAN" v={p.iban} on={(v) => update({ iban: v })} /><F label="BIC" v={p.bic} on={(v) => update({ bic: v })} /></Row>
+      </Card>
+
+      <Card className="p-6 space-y-4">
+        <h2 className="text-lg font-semibold">Email</h2>
+        <F label="Sender email (must be on a Resend-verified domain)" v={p.sender_email} on={(v) => update({ sender_email: v })} />
+        <p className="text-xs text-muted-foreground">Used as the From address when sending devis &amp; factures.</p>
       </Card>
 
       <Card className="p-6 space-y-4">

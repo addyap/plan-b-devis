@@ -39,6 +39,7 @@ export type Database = {
           rc_pro_insurer: string | null
           rc_pro_policy: string | null
           rcs_or_rm: string | null
+          sender_email: string | null
           siret: string | null
           trading_name: string | null
           updated_at: string
@@ -70,6 +71,7 @@ export type Database = {
           rc_pro_insurer?: string | null
           rc_pro_policy?: string | null
           rcs_or_rm?: string | null
+          sender_email?: string | null
           siret?: string | null
           trading_name?: string | null
           updated_at?: string
@@ -101,6 +103,7 @@ export type Database = {
           rc_pro_insurer?: string | null
           rc_pro_policy?: string | null
           rcs_or_rm?: string | null
+          sender_email?: string | null
           siret?: string | null
           trading_name?: string | null
           updated_at?: string
@@ -161,10 +164,12 @@ export type Database = {
           id: string
           issue_date: string
           language: Database["public"]["Enums"]["devis_language"]
+          last_email_error: string | null
           notes: string | null
           project_description: string | null
           project_duration: string | null
           project_start: string | null
+          sent_at: string | null
           status: Database["public"]["Enums"]["devis_status"]
           subtotal_ht: number
           total_ttc: number
@@ -180,10 +185,12 @@ export type Database = {
           id?: string
           issue_date?: string
           language?: Database["public"]["Enums"]["devis_language"]
+          last_email_error?: string | null
           notes?: string | null
           project_description?: string | null
           project_duration?: string | null
           project_start?: string | null
+          sent_at?: string | null
           status?: Database["public"]["Enums"]["devis_status"]
           subtotal_ht?: number
           total_ttc?: number
@@ -199,10 +206,12 @@ export type Database = {
           id?: string
           issue_date?: string
           language?: Database["public"]["Enums"]["devis_language"]
+          last_email_error?: string | null
           notes?: string | null
           project_description?: string | null
           project_duration?: string | null
           project_start?: string | null
+          sent_at?: string | null
           status?: Database["public"]["Enums"]["devis_status"]
           subtotal_ht?: number
           total_ttc?: number
@@ -261,6 +270,131 @@ export type Database = {
           },
         ]
       }
+      facture_lines: {
+        Row: {
+          description: string
+          facture_id: string
+          id: string
+          line_total_ht: number
+          quantity: number
+          sort_order: number
+          unit: string | null
+          unit_price_ht: number
+        }
+        Insert: {
+          description: string
+          facture_id: string
+          id?: string
+          line_total_ht?: number
+          quantity?: number
+          sort_order?: number
+          unit?: string | null
+          unit_price_ht?: number
+        }
+        Update: {
+          description?: string
+          facture_id?: string
+          id?: string
+          line_total_ht?: number
+          quantity?: number
+          sort_order?: number
+          unit?: string | null
+          unit_price_ht?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facture_lines_facture_id_fkey"
+            columns: ["facture_id"]
+            isOneToOne: false
+            referencedRelation: "factures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      factures: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          deposit_amount: number | null
+          devis_id: string | null
+          due_date: string
+          facture_number: string
+          id: string
+          issue_date: string
+          language: string
+          last_email_error: string | null
+          notes: string | null
+          project_description: string | null
+          project_duration: string | null
+          project_start: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["facture_status"]
+          subtotal_ht: number
+          total_ttc: number
+          updated_at: string
+          vat_amount: number
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          deposit_amount?: number | null
+          devis_id?: string | null
+          due_date: string
+          facture_number: string
+          id?: string
+          issue_date?: string
+          language?: string
+          last_email_error?: string | null
+          notes?: string | null
+          project_description?: string | null
+          project_duration?: string | null
+          project_start?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["facture_status"]
+          subtotal_ht?: number
+          total_ttc?: number
+          updated_at?: string
+          vat_amount?: number
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          deposit_amount?: number | null
+          devis_id?: string | null
+          due_date?: string
+          facture_number?: string
+          id?: string
+          issue_date?: string
+          language?: string
+          last_email_error?: string | null
+          notes?: string | null
+          project_description?: string | null
+          project_duration?: string | null
+          project_start?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["facture_status"]
+          subtotal_ht?: number
+          total_ttc?: number
+          updated_at?: string
+          vat_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "factures_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "factures_devis_id_fkey"
+            columns: ["devis_id"]
+            isOneToOne: false
+            referencedRelation: "devis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_presets: {
         Row: {
           default_rate: number | null
@@ -297,10 +431,12 @@ export type Database = {
     }
     Functions: {
       next_devis_number: { Args: never; Returns: string }
+      next_facture_number: { Args: never; Returns: string }
     }
     Enums: {
       devis_language: "en" | "fr"
       devis_status: "draft" | "sent" | "accepted" | "declined" | "expired"
+      facture_status: "draft" | "sent" | "paid" | "overdue" | "cancelled"
       vat_status: "franchise_293b" | "tva_registered"
     }
     CompositeTypes: {
@@ -431,6 +567,7 @@ export const Constants = {
     Enums: {
       devis_language: ["en", "fr"],
       devis_status: ["draft", "sent", "accepted", "declined", "expired"],
+      facture_status: ["draft", "sent", "paid", "overdue", "cancelled"],
       vat_status: ["franchise_293b", "tva_registered"],
     },
   },

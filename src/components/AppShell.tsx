@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 
 const nav = [
   { to: "/dashboard", label: "Devis" },
+  { to: "/factures", label: "Factures" },
   { to: "/clients", label: "Clients" },
   { to: "/settings", label: "Settings" },
 ] as const;

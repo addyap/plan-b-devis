@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, lazy, Suspense } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,10 +10,10 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Download, Eye, GripVertical, Library, Plus, Trash2, UserPlus } from "lucide-react";
-import { fmtEUR, todayISO, addDays } from "@/lib/format";
+import { ArrowLeft, Download, Eye, FileCheck2, GripVertical, Library, Mail, Plus, Trash2, UserPlus } from "lucide-react";
+import { fmtEUR, addDays } from "@/lib/format";
 import { toast } from "sonner";
-import type { PdfProfile, PdfClient, PdfDevis } from "@/lib/pdf";
+import { generateDevisPdf, pdfToBase64, type PdfProfile, type PdfClient, type PdfDevis, type PdfLine } from "@/lib/pdf";
 
 export const Route = createFileRoute("/_authenticated/devis/$id")({
   component: DevisEditor,
@@ -29,6 +29,7 @@ type Devis = {
   project_description: string | null; project_start: string | null; project_duration: string | null;
   subtotal_ht: number; vat_amount: number; total_ttc: number;
   deposit_amount: number | null; notes: string | null;
+  sent_at?: string | null;
 };
 
 type Client = { id: string; name: string };
@@ -43,9 +44,12 @@ function DevisEditor() {
   const [presets, setPresets] = useState<{ id: string; label_en: string; label_fr: string; default_unit: string | null; default_rate: number | null }[]>([]);
   const [fullClientData, setFullClientData] = useState<PdfClient>(null);
   const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [newClientOpen, setNewClientOpen] = useState(false);
   const [presetsOpen, setPresetsOpen] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     if (!devis?.client_id) { setFullClientData(null); return; }
@@ -70,6 +74,8 @@ function DevisEditor() {
       setPresets(pr.data ?? []);
     })();
   }, [id]);
+
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
 
   const subtotal = useMemo(() => lines.reduce((s, l) => s + Number(l.quantity) * Number(l.unit_price_ht), 0), [lines]);
   const vatRate = profile?.vat_status === "tva_registered" ? Number(profile?.vat_rate ?? 0) : 0;
@@ -118,8 +124,7 @@ function DevisEditor() {
       deposit_amount: devis.deposit_amount, notes: devis.notes,
     };
     const { error: e1 } = await supabase.from("devis").update(payload).eq("id", id);
-    if (e1) { toast.error(e1.message); setSaving(false); return; }
-    // Replace lines: delete & re-insert (simple, fine for single-user app)
+    if (e1) { toast.error(e1.message); setSaving(false); return false; }
     await supabase.from("devis_lines").delete().eq("devis_id", id);
     if (lines.length) {
       const { error: e2 } = await supabase.from("devis_lines").insert(
@@ -129,14 +134,13 @@ function DevisEditor() {
           sort_order: i,
         })),
       );
-      if (e2) { toast.error(e2.message); setSaving(false); return; }
+      if (e2) { toast.error(e2.message); setSaving(false); return false; }
     }
     if (newStatus) setDevis({ ...devis, status: newStatus });
     setSaving(false);
     toast.success("Saved");
+    return true;
   };
-
-  
 
   const pdfDevis: PdfDevis = {
     devis_number: devis.devis_number, issue_date: devis.issue_date, validity_until: devis.validity_until,
@@ -144,7 +148,101 @@ function DevisEditor() {
     project_description: devis.project_description, project_start: devis.project_start, project_duration: devis.project_duration,
     subtotal_ht: subtotal, vat_amount: vatAmount, total_ttc: totalTtc,
     deposit_amount: devis.deposit_amount, notes: devis.notes,
-    lines: lines.map((l) => ({ description: l.description, quantity: Number(l.quantity), unit: l.unit, unit_price_ht: Number(l.unit_price_ht), line_total_ht: +(Number(l.quantity) * Number(l.unit_price_ht)).toFixed(2) })),
+  };
+
+  const pdfLines: PdfLine[] = lines.map((l) => ({ description: l.description, quantity: Number(l.quantity), unit: l.unit, unit_price_ht: Number(l.unit_price_ht), line_total_ht: +(Number(l.quantity) * Number(l.unit_price_ht)).toFixed(2) }));
+
+  const downloadPdf = async () => {
+    try {
+      const doc = await generateDevisPdf(pdfDevis, pdfLines, profile, fullClientData);
+      doc.save(`${devis.devis_number}.pdf`);
+    } catch (e) {
+      toast.error(`PDF failed: ${(e as Error).message}`);
+    }
+  };
+
+  const openPreview = async () => {
+    try {
+      const doc = await generateDevisPdf(pdfDevis, pdfLines, profile, fullClientData);
+      const blob = doc.output("blob");
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(URL.createObjectURL(blob));
+      setPreviewOpen(true);
+    } catch (e) {
+      toast.error(`Preview failed: ${(e as Error).message}`);
+    }
+  };
+
+  const sendToClient = async () => {
+    if (!fullClientData?.email) return toast.error("Client has no email address.");
+    if (!profile.sender_email) return toast.error("Set a sender email in Settings first.");
+    setSending(true);
+    try {
+      const ok = await save();
+      if (!ok) { setSending(false); return; }
+      const doc = await generateDevisPdf(pdfDevis, pdfLines, profile, fullClientData);
+      const b64 = await pdfToBase64(doc);
+      const { data, error } = await supabase.functions.invoke("send-devis", {
+        body: { devis_id: id, to: fullClientData.email, pdf_base64: b64, filename: `${devis.devis_number}.pdf` },
+      });
+      if (error || (data && (data as any).error)) {
+        const msg = error?.message || (data as any)?.error || "Send failed";
+        await supabase.from("devis").update({ last_email_error: msg }).eq("id", id);
+        toast.error(`Email failed: ${msg}`);
+      } else {
+        const now = new Date().toISOString();
+        await supabase.from("devis").update({ sent_at: now, status: "sent", last_email_error: null }).eq("id", id);
+        setDevis({ ...devis, sent_at: now, status: "sent" });
+        toast.success(`Sent to ${fullClientData.email}`);
+      }
+    } catch (e) {
+      toast.error(`Send failed: ${(e as Error).message}`);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const convertToFacture = async () => {
+    setConverting(true);
+    try {
+      const ok = await save();
+      if (!ok) { setConverting(false); return; }
+      const { data: num, error: nErr } = await supabase.rpc("next_facture_number");
+      if (nErr || !num) throw new Error(nErr?.message || "No number");
+      const today = new Date().toISOString().slice(0, 10);
+      const dueDays = 30;
+      const dueDate = addDays(today, dueDays);
+      const { data: fac, error: fErr } = await supabase.from("factures").insert({
+        facture_number: num as string,
+        devis_id: id,
+        client_id: devis.client_id,
+        issue_date: today,
+        due_date: dueDate,
+        language: devis.language,
+        project_description: devis.project_description,
+        project_start: devis.project_start,
+        project_duration: devis.project_duration,
+        subtotal_ht: subtotal,
+        vat_amount: vatAmount,
+        total_ttc: totalTtc,
+        deposit_amount: devis.deposit_amount,
+        notes: devis.notes,
+      }).select("id").single();
+      if (fErr || !fac) throw new Error(fErr?.message || "Insert failed");
+      if (lines.length) {
+        await supabase.from("facture_lines").insert(lines.map((l, i) => ({
+          facture_id: fac.id, description: l.description, quantity: l.quantity, unit: l.unit,
+          unit_price_ht: l.unit_price_ht, line_total_ht: +(Number(l.quantity) * Number(l.unit_price_ht)).toFixed(2),
+          sort_order: i,
+        })));
+      }
+      toast.success(`Facture ${num} created`);
+      navigate({ to: "/factures/$id", params: { id: fac.id } });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setConverting(false);
+    }
   };
 
   return (
@@ -157,13 +255,16 @@ function DevisEditor() {
             <h1 className="text-2xl font-semibold font-mono">{devis.devis_number}</h1>
           </div>
           <Badge variant="secondary" className="ml-2">{devis.status}</Badge>
+          {devis.sent_at && <span className="text-xs text-muted-foreground">Sent {new Date(devis.sent_at).toLocaleString()}</span>}
         </div>
         <div className="flex flex-wrap gap-2">
-          <PdfActions devis={pdfDevis} profile={profile} client={fullClientData} setOpen={setPreviewOpen} />
-          <Button variant="outline" onClick={() => save("sent")} disabled={saving}>Mark sent</Button>
+          <Button variant="outline" onClick={openPreview}><Eye className="size-4" /> Preview</Button>
+          <Button variant="outline" onClick={downloadPdf}><Download className="size-4" /> PDF</Button>
+          <Button variant="outline" onClick={sendToClient} disabled={sending}><Mail className="size-4" /> {sending ? "Sending…" : "Send to client"}</Button>
           <Button variant="outline" onClick={() => save("accepted")} disabled={saving}>Accepted</Button>
           <Button variant="outline" onClick={() => save("declined")} disabled={saving}>Declined</Button>
-          <Button onClick={() => save()} disabled={saving}>{saving ? "Saving…" : "Save draft"}</Button>
+          <Button variant="outline" onClick={convertToFacture} disabled={converting}><FileCheck2 className="size-4" /> {converting ? "…" : "Convert to facture"}</Button>
+          <Button onClick={() => save()} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
         </div>
       </div>
 
@@ -216,7 +317,6 @@ function DevisEditor() {
             </div>
           </div>
 
-          {/* Lines */}
           <div className="pt-4 border-t">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-semibold">Line items</h2>
@@ -251,7 +351,6 @@ function DevisEditor() {
           </div>
         </Card>
 
-        {/* Totals panel */}
         <Card className="p-5 space-y-3 h-fit sticky top-4">
           <h2 className="font-semibold">Totals</h2>
           <Row k="Subtotal HT" v={fmtEUR(subtotal)} />
@@ -275,14 +374,17 @@ function DevisEditor() {
         </Card>
       </div>
 
-      <PreviewDialog open={previewOpen} setOpen={setPreviewOpen} devis={pdfDevis} profile={profile} client={fullClientData} />
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-5xl h-[85vh] p-0">
+          <DialogHeader className="p-4 border-b"><DialogTitle>PDF preview</DialogTitle></DialogHeader>
+          <div className="flex-1 h-full">
+            {previewUrl && <iframe src={previewUrl} title="PDF" className="w-full h-full border-0" />}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
-// Lazy load PDF (browser only)
-const PDFViewer = lazy(() => import("@react-pdf/renderer").then((m) => ({ default: m.PDFViewer })));
-const PDFDownloadLink = lazy(() => import("@react-pdf/renderer").then((m) => ({ default: m.PDFDownloadLink })));
 
 const Row = ({ k, v, bold }: { k: string; v: string; bold?: boolean }) => (
   <div className={`flex justify-between text-sm ${bold ? "font-semibold text-base" : ""}`}>
@@ -327,53 +429,6 @@ function PresetsDialog({ open, setOpen, presets, lang, onPick }: { open: boolean
               <Badge variant="secondary">{p.default_unit}</Badge>
             </button>
           ))}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function PdfActions({ devis, profile, client, setOpen }: { devis: PdfDevis; profile: PdfProfile; client: PdfClient; setOpen: (b: boolean) => void }) {
-  return (
-    <>
-      <Button variant="outline" onClick={() => setOpen(true)}><Eye className="size-4" /> Preview</Button>
-      <Suspense fallback={<Button variant="outline" disabled><Download className="size-4" /> PDF</Button>}>
-        <LazyDownload devis={devis} profile={profile} client={client} />
-      </Suspense>
-    </>
-  );
-}
-
-function LazyDownload({ devis, profile, client }: { devis: PdfDevis; profile: PdfProfile; client: PdfClient }) {
-  const [Doc, setDoc] = useState<any>(null);
-  useEffect(() => { import("@/lib/pdf").then((m) => setDoc(() => m.DevisPDF)); }, []);
-  if (!Doc) return null;
-  return (
-    <PDFDownloadLink document={<Doc devis={devis} profile={profile} client={client} />} fileName={`${devis.devis_number}.pdf`}>
-      {({ loading }) => (
-        <Button variant="outline" disabled={loading}>
-          <Download className="size-4" /> {loading ? "…" : "PDF"}
-        </Button>
-      )}
-    </PDFDownloadLink>
-  );
-}
-
-function PreviewDialog({ open, setOpen, devis, profile, client }: { open: boolean; setOpen: (b: boolean) => void; devis: PdfDevis; profile: PdfProfile; client: PdfClient }) {
-  const [Doc, setDoc] = useState<any>(null);
-  useEffect(() => { if (open) import("@/lib/pdf").then((m) => setDoc(() => m.DevisPDF)); }, [open]);
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-5xl h-[85vh] p-0">
-        <DialogHeader className="p-4 border-b"><DialogTitle>PDF preview</DialogTitle></DialogHeader>
-        <div className="flex-1 h-full">
-          {Doc && (
-            <Suspense fallback={<div className="p-8 text-muted-foreground">Rendering…</div>}>
-              <PDFViewer style={{ width: "100%", height: "100%", border: 0 }}>
-                <Doc devis={devis} profile={profile} client={client} />
-              </PDFViewer>
-            </Suspense>
-          )}
         </div>
       </DialogContent>
     </Dialog>
