@@ -12,4 +12,7 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Force Nitro on and target Vercel for self-hosted deploys.
+  // This override only applies outside Lovable's own build (Lovable preview stays on Cloudflare).
+  nitro: { preset: "vercel" },
 });
