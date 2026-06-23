@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import logoAsset from "@/assets/plan-b-logo.png.asset.json";
 
 const NAV = [
   { to: "/dashboard", key: "nav.devis" },
@@ -26,13 +27,15 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="mx-auto max-w-7xl px-6 h-16 flex items-center justify-between">
+      <header className="border-b bg-primary text-primary-foreground">
+        <div className="mx-auto max-w-7xl px-6 h-20 flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center gap-3">
-            <div className="size-8 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs tracking-wider">PB</div>
+            <div className="size-12 rounded-md bg-primary-foreground/5 ring-1 ring-primary-foreground/10 flex items-center justify-center overflow-hidden">
+              <img src={logoAsset.url} alt="Plan B Concept" className="size-full object-contain" />
+            </div>
             <div className="leading-tight">
-              <div className="text-sm font-semibold text-foreground">Plan B Concept</div>
-              <div className="text-[10px] text-muted-foreground tracking-wide uppercase">Côte d'Azur</div>
+              <div className="text-sm font-semibold tracking-wide">PLAN B</div>
+              <div className="text-[10px] text-accent tracking-[0.2em] uppercase">Côte d'Azur</div>
             </div>
           </Link>
           <div className="flex items-center gap-2">
