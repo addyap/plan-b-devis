@@ -37,9 +37,12 @@ export type PdfFacture = {
 };
 
 const NAVY: [number, number, number] = [15, 27, 61];
-const fmtMoney = (n: number) =>
-  new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n || 0)) + " \u20AC";
-const fmtD = (d: string | null | undefined) => (d ? new Date(d).toLocaleDateString("fr-FR") : "—");
+const locale = (l: Lang) => (l === "fr" ? "fr-FR" : "en-GB");
+const fmtMoney = (n: number, lang: Lang) =>
+  new Intl.NumberFormat(locale(lang), { style: "currency", currency: "EUR" }).format(Number(n || 0));
+const fmtD = (d: string | null | undefined, lang: Lang) =>
+  d ? new Intl.DateTimeFormat(locale(lang), { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(d)) : "—";
+
 
 async function fetchLogoDataUrl(logoUrl: string | null): Promise<{ data: string; w: number; h: number; fmt: "PNG" | "JPEG" } | null> {
   if (!logoUrl) return null;
