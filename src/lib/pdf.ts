@@ -2,7 +2,9 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { supabase } from "@/integrations/supabase/client";
 import { L, type Lang } from "@/lib/i18n";
-import brandLogo from "@/assets/plan-b-logo.png.asset.json";
+// Inline the brand logo at build time so the PDF can embed it without any
+// network fetch (avoids cross-origin / CORS issues when drawing into jsPDF).
+import brandLogoDataUrl from "@/assets/plan-b-logo.png?inline";
 
 export type PdfProfile = {
   id?: string;
@@ -60,9 +62,22 @@ const fmtD = (d: string | null | undefined, lang: Lang) =>
   d ? new Intl.DateTimeFormat(locale(lang), { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(d)) : "—";
 
 
+async function dataUrlToDims(dataUrl: string): Promise<{ w: number; h: number }> {
+  if (typeof Image === "undefined") return { w: 1, h: 1 };
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.width, h: img.height });
+    img.onerror = () => resolve({ w: 1, h: 1 });
+    img.src = dataUrl;
+  });
+}
+
 async function fetchLogoDataUrl(logoUrl: string | null): Promise<{ data: string; w: number; h: number; fmt: "PNG" | "JPEG" } | null> {
-  // Fall back to bundled Plan B Concept brand logo when profile has no custom logo
-  if (!logoUrl) logoUrl = brandLogo.url;
+  // No custom logo on the profile → embed the bundled brand logo directly.
+  if (!logoUrl) {
+    const dims = await dataUrlToDims(brandLogoDataUrl);
+    return { data: brandLogoDataUrl, w: dims.w, h: dims.h, fmt: "PNG" };
+  }
   try {
     // If it's a Supabase storage URL, try to grab a signed url for the path (bucket is private)
     let url = logoUrl;
@@ -81,13 +96,7 @@ async function fetchLogoDataUrl(logoUrl: string | null): Promise<{ data: string;
       r.onerror = reject;
       r.readAsDataURL(blob);
     });
-    // Determine dimensions
-    const dims = await new Promise<{ w: number; h: number }>((resolve) => {
-      const img = new Image();
-      img.onload = () => resolve({ w: img.width, h: img.height });
-      img.onerror = () => resolve({ w: 1, h: 1 });
-      img.src = dataUrl;
-    });
+    const dims = await dataUrlToDims(dataUrl);
     return { data: dataUrl, w: dims.w, h: dims.h, fmt };
   } catch {
     return null;
@@ -95,6 +104,7 @@ async function fetchLogoDataUrl(logoUrl: string | null): Promise<{ data: string;
 }
 
 type DocKind = "devis" | "facture";
+
 
 type CommonInput = {
   kind: DocKind;

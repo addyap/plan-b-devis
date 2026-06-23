@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { persistLocale } from "@/i18n";
-import logoAsset from "@/assets/plan-b-logo.png.asset.json";
+import logoUrl from "@/assets/plan-b-logo.png";
 
 const NAV = [
   { to: "/dashboard", key: "nav.devis" },
@@ -37,7 +37,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="mx-auto max-w-7xl px-6 h-20 flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center gap-3">
             <div className="size-14 rounded-md overflow-hidden shadow-sm">
-              <img src={logoAsset.url} alt="Plan B Côte d'Azur" className="size-full object-contain" />
+              <img src={logoUrl} alt="Plan B Côte d'Azur" className="size-full object-contain" />
             </div>
           </Link>
           <div className="flex items-center gap-2">
