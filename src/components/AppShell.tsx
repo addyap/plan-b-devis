@@ -27,15 +27,15 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-primary text-primary-foreground">
+      <header className="border-b border-brand-maroon-dark bg-brand-maroon text-white shadow-sm">
         <div className="mx-auto max-w-7xl px-6 h-20 flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center gap-3">
-            <div className="size-14 rounded-md bg-primary-foreground p-1 shadow-sm flex items-center justify-center overflow-hidden">
-              <img src={logoAsset.url} alt="Plan B Concept" className="size-full object-contain" />
+            <div className="size-14 rounded-md bg-white p-1 shadow-sm flex items-center justify-center overflow-hidden">
+              <img src={logoAsset.url} alt="Plan B Côte d'Azur" className="size-full object-contain" />
             </div>
             <div className="leading-tight">
-              <div className="text-sm font-semibold tracking-wide">PLAN B</div>
-              <div className="text-[10px] text-accent tracking-[0.2em] uppercase">Côte d'Azur</div>
+              <div className="text-sm font-semibold tracking-wide text-white">PLAN B</div>
+              <div className="text-[10px] text-brand-gold tracking-[0.2em] uppercase">Côte d'Azur</div>
             </div>
           </Link>
           <div className="flex items-center gap-2">
@@ -46,7 +46,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Link
                     key={n.to}
                     to={n.to}
-                    className={`px-3 py-1.5 rounded-md text-sm transition-colors ${active ? "bg-accent text-accent-foreground font-medium" : "text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10"}`}
+                    className={`px-3 py-1.5 rounded-md text-sm transition-colors ${active ? "bg-brand-gold text-brand-maroon font-semibold" : "text-white/75 hover:text-white hover:bg-white/10"}`}
                   >
                     {t(n.key)}
                   </Link>
@@ -55,7 +55,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </nav>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1.5 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground" aria-label={t("common.language")}>
+                <Button variant="ghost" size="sm" className="gap-1.5 text-white hover:bg-white/10 hover:text-white" aria-label={t("common.language")}>
                   <Globe className="size-4" />
                   <span className="text-xs font-semibold uppercase">{current}</span>
                 </Button>
