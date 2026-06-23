@@ -604,8 +604,8 @@ function DevisEditor() {
         notes: devis.notes,
       }).select("id").single();
       if (fErr || !fac) throw new Error(fErr?.message || "Insertion failed");
-      if (lines.length) {
-        await supabase.from("facture_lines").insert(lines.map((l, i) => ({
+      if (linesView.length) {
+        await supabase.from("facture_lines").insert(linesView.map((l, i) => ({
           facture_id: fac.id,
           description: l.description,
           quantity: l.quantity,
