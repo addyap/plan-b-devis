@@ -259,6 +259,17 @@ function DevisEditor() {
           signature_client_name: dd.signature_client_name,
           signature_date: dd.signature_date,
           sent_at: dd.sent_at,
+          project_name: dd.project_name ?? null,
+          site_address_line1: dd.site_address_line1 ?? null,
+          site_address_line2: dd.site_address_line2 ?? null,
+          site_postcode: dd.site_postcode ?? null,
+          site_city: dd.site_city ?? null,
+          site_country: dd.site_country ?? null,
+          operation_type: dd.operation_type ?? null,
+          surface_m2: dd.surface_m2 != null ? Number(dd.surface_m2) : null,
+          works_budget_ht: dd.works_budget_ht != null ? Number(dd.works_budget_ht) : null,
+          mission_phases: dd.mission_phases ?? [],
+          payment_schedule: Array.isArray(dd.payment_schedule) ? dd.payment_schedule : [],
         });
       }
       setLines(((l.data ?? []) as any[]).map(x => ({
@@ -273,6 +284,9 @@ function DevisEditor() {
         discount_value: Number(x.discount_value ?? 0),
         vat_rate: Number(x.vat_rate ?? 20),
         sort_order: x.sort_order ?? 0,
+        mission_code: x.mission_code ?? null,
+        pricing_mode: (x.pricing_mode ?? "amount") as PricingMode,
+        percent_of_budget: Number(x.percent_of_budget ?? 0),
       })));
       setClients((c.data ?? []) as ClientRow[]);
       setProfile(p.data as unknown as PdfProfile);
@@ -303,6 +317,20 @@ function DevisEditor() {
 
   const update = (patch: Partial<Devis>) => setDevis({ ...devis, ...patch });
 
+  // For percent-mode MOE lines, derive unit_price from works budget
+  const budget = Number(devis.works_budget_ht || 0);
+  const linesView: Line[] = lines.map(l =>
+    l.pricing_mode === "percent"
+      ? { ...l, unit_price_ht: +(budget * (Number(l.percent_of_budget || 0) / 100)).toFixed(2), quantity: 1, unit: "forfait" }
+      : l,
+  );
+
+  const honorairesHT = +linesView
+    .filter(l => l.line_type === "moe")
+    .reduce((s, l) => s + lineNetHT(l), 0)
+    .toFixed(2);
+  const honorairesPct = budget > 0 ? +((honorairesHT / budget) * 100).toFixed(2) : 0;
+
   const addLine = (init?: Partial<Line>) => setLines([...lines, {
     line_type: "prestation",
     description: "",
@@ -314,11 +342,14 @@ function DevisEditor() {
     discount_value: 0,
     vat_rate: Number((profile as any)?.vat_rate ?? 20),
     sort_order: lines.length,
+    mission_code: null,
+    pricing_mode: "amount",
+    percent_of_budget: 0,
     ...init,
-  }]);
+  } as Line]);
   const updateLine = (i: number, patch: Partial<Line>) => {
     const next = [...lines];
-    next[i] = { ...next[i], ...patch };
+    next[i] = { ...next[i], ...patch } as Line;
     setLines(next);
   };
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i).map((l, idx) => ({ ...l, sort_order: idx })));
