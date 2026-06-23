@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Upload } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/settings")({
+export const Route = createFileRoute("/_app/settings")({
   component: SettingsPage,
 });
 

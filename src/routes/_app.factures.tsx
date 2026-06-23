@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { fmtEUR, fmtDate } from "@/lib/format";
 
-export const Route = createFileRoute("/_authenticated/factures")({
+export const Route = createFileRoute("/_app/factures")({
   component: FacturesPage,
 });
 

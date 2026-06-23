@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { fmtDate, fmtEUR, todayISO } from "@/lib/format";
 import { Plus, Search } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/dashboard")({
+export const Route = createFileRoute("/_app/dashboard")({
   component: Dashboard,
 });
 

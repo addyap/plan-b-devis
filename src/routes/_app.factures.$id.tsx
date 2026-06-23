@@ -13,7 +13,7 @@ import { fmtEUR } from "@/lib/format";
 import { toast } from "sonner";
 import { generateFacturePdf, pdfToBase64, type PdfProfile, type PdfClient, type PdfFacture, type PdfLine } from "@/lib/pdf";
 
-export const Route = createFileRoute("/_authenticated/factures/$id")({
+export const Route = createFileRoute("/_app/factures/$id")({
   component: FactureEditor,
 });
 

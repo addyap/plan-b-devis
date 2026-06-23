@@ -1,7 +1,7 @@
 project_id = "irdknjfyovwhobopnmif"
 
 [functions.send-devis]
-verify_jwt = true
+verify_jwt = false
 
 [functions.send-facture]
-verify_jwt = true
+verify_jwt = false
