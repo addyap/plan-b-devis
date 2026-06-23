@@ -431,15 +431,26 @@ function DevisEditor() {
         legal_mentions: devis.legal_mentions,
         signature_client_name: devis.signature_client_name,
         signature_date: devis.signature_date,
+        project_name: devis.project_name,
+        site_address_line1: devis.site_address_line1,
+        site_address_line2: devis.site_address_line2,
+        site_postcode: devis.site_postcode,
+        site_city: devis.site_city,
+        site_country: devis.site_country,
+        operation_type: devis.operation_type,
+        surface_m2: devis.surface_m2,
+        works_budget_ht: devis.works_budget_ht,
+        mission_phases: devis.mission_phases,
+        payment_schedule: devis.payment_schedule,
       };
 
       const { error: e1 } = await supabase.from("devis").update(payload).eq("id", id);
       if (e1) { toast.error(e1.message); setSaving(false); return false; }
 
       await supabase.from("devis_lines").delete().eq("devis_id", id);
-      if (lines.length) {
+      if (linesView.length) {
         const { error: e2 } = await supabase.from("devis_lines").insert(
-          lines.map((l, i) => ({
+          linesView.map((l, i) => ({
             devis_id: id,
             line_type: l.line_type,
             description: l.description,
@@ -452,6 +463,9 @@ function DevisEditor() {
             vat_rate: l.vat_rate,
             line_total_ht: lineNetHT(l),
             sort_order: i,
+            mission_code: l.mission_code,
+            pricing_mode: l.pricing_mode,
+            percent_of_budget: l.percent_of_budget,
           })),
         );
         if (e2) { toast.error(e2.message); setSaving(false); return false; }
