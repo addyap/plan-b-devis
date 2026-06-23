@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Globe } from "lucide-react";
 import {
@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { persistLocale } from "@/i18n";
 import logoAsset from "@/assets/plan-b-logo.png.asset.json";
 
 const NAV = [
@@ -21,9 +22,14 @@ const NAV = [
 export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const { t, i18n } = useTranslation();
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => { setHydrated(true); }, []);
 
-  const setLang = (lng: "fr" | "en") => i18n.changeLanguage(lng);
-  const current = (i18n.resolvedLanguage ?? i18n.language ?? "fr").startsWith("fr") ? "fr" : "en";
+  const setLang = (lng: "fr" | "en") => { persistLocale(lng); void i18n.changeLanguage(lng); };
+  const active = (i18n.resolvedLanguage ?? i18n.language ?? "fr").startsWith("fr") ? "fr" : "en";
+  // Always render "fr" on first paint to match SSR; switch after hydration.
+  const current = hydrated ? active : "fr";
+
 
   return (
     <div className="min-h-screen bg-background">
