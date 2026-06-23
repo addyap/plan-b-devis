@@ -46,7 +46,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Link
                     key={n.to}
                     to={n.to}
-                    className={`px-3 py-1.5 rounded-md text-sm transition-colors ${active ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
+                    className={`px-3 py-1.5 rounded-md text-sm transition-colors ${active ? "bg-accent text-accent-foreground font-medium" : "text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10"}`}
                   >
                     {t(n.key)}
                   </Link>
@@ -55,7 +55,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </nav>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1.5" aria-label={t("common.language")}>
+                <Button variant="ghost" size="sm" className="gap-1.5 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground" aria-label={t("common.language")}>
                   <Globe className="size-4" />
                   <span className="text-xs font-semibold uppercase">{current}</span>
                 </Button>
