@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { persistLocale } from "@/i18n";
-import logoAsset from "@/assets/plan-b-logo.png.asset.json";
+import logoUrl from "@/assets/plan-b-logo.png";
 
 const NAV = [
   { to: "/dashboard", key: "nav.devis" },
