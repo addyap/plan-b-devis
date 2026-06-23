@@ -102,7 +102,7 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
   const tva = profile.vat_status === "tva_registered";
   const tradingName = profile.trading_name || profile.legal_name || "Plan B Concept";
   const balance = input.depositAmount ? input.totalTtc - Number(input.depositAmount) : null;
-  const titleWord = input.kind === "devis" ? L.devis[lang] : (lang === "fr" ? "FACTURE" : "INVOICE");
+  const titleWord = input.kind === "devis" ? L.devis[lang] : L.facture[lang];
 
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
