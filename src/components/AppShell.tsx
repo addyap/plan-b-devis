@@ -1,8 +1,5 @@
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { LogOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 const nav = [
   { to: "/dashboard", label: "Devis" },
@@ -12,13 +9,7 @@ const nav = [
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
-  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -45,10 +36,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               );
             })}
           </nav>
-          <Button variant="ghost" size="sm" onClick={signOut}>
-            <LogOut className="size-4" />
-            <span className="hidden sm:inline ml-2">Sign out</span>
-          </Button>
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>

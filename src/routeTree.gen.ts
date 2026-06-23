@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppFacturesRouteImport } from './routes/_app.factures'
@@ -17,30 +18,34 @@ import { Route as AppClientsRouteImport } from './routes/_app.clients'
 import { Route as AppFacturesIdRouteImport } from './routes/_app.factures.$id'
 import { Route as AppDevisIdRouteImport } from './routes/_app.devis.$id'
 
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
-  id: '/_app/settings',
+  id: '/settings',
   path: '/settings',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
 } as any)
 const AppFacturesRoute = AppFacturesRouteImport.update({
-  id: '/_app/factures',
+  id: '/factures',
   path: '/factures',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
 } as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
-  id: '/_app/dashboard',
+  id: '/dashboard',
   path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
 } as any)
 const AppClientsRoute = AppClientsRouteImport.update({
-  id: '/_app/clients',
+  id: '/clients',
   path: '/clients',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
 } as any)
 const AppFacturesIdRoute = AppFacturesIdRouteImport.update({
   id: '/$id',
@@ -48,9 +53,9 @@ const AppFacturesIdRoute = AppFacturesIdRouteImport.update({
   getParentRoute: () => AppFacturesRoute,
 } as any)
 const AppDevisIdRoute = AppDevisIdRouteImport.update({
-  id: '/_app/devis/$id',
+  id: '/devis/$id',
   path: '/devis/$id',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -74,6 +79,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
   '/_app/clients': typeof AppClientsRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/factures': typeof AppFacturesRouteWithChildren
@@ -103,6 +109,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/_app'
     | '/_app/clients'
     | '/_app/dashboard'
     | '/_app/factures'
@@ -113,15 +120,18 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AppClientsRoute: typeof AppClientsRoute
-  AppDashboardRoute: typeof AppDashboardRoute
-  AppFacturesRoute: typeof AppFacturesRouteWithChildren
-  AppSettingsRoute: typeof AppSettingsRoute
-  AppDevisIdRoute: typeof AppDevisIdRoute
+  AppRoute: typeof AppRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -134,28 +144,28 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/factures': {
       id: '/_app/factures'
       path: '/factures'
       fullPath: '/factures'
       preLoaderRoute: typeof AppFacturesRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AppDashboardRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/clients': {
       id: '/_app/clients'
       path: '/clients'
       fullPath: '/clients'
       preLoaderRoute: typeof AppClientsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/factures/$id': {
       id: '/_app/factures/$id'
@@ -169,7 +179,7 @@ declare module '@tanstack/react-router' {
       path: '/devis/$id'
       fullPath: '/devis/$id'
       preLoaderRoute: typeof AppDevisIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AppRoute
     }
   }
 }
@@ -186,13 +196,27 @@ const AppFacturesRouteWithChildren = AppFacturesRoute._addFileChildren(
   AppFacturesRouteChildren,
 )
 
-const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+interface AppRouteChildren {
+  AppClientsRoute: typeof AppClientsRoute
+  AppDashboardRoute: typeof AppDashboardRoute
+  AppFacturesRoute: typeof AppFacturesRouteWithChildren
+  AppSettingsRoute: typeof AppSettingsRoute
+  AppDevisIdRoute: typeof AppDevisIdRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
   AppClientsRoute: AppClientsRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppFacturesRoute: AppFacturesRouteWithChildren,
   AppSettingsRoute: AppSettingsRoute,
   AppDevisIdRoute: AppDevisIdRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
+const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
