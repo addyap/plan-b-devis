@@ -48,7 +48,7 @@ function FacturesPage() {
         </div>
         <Input placeholder={t("common.search")} value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
       </div>
-      <Card className="overflow-hidden">
+      <Card className="hidden md:block overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
@@ -74,6 +74,28 @@ function FacturesPage() {
           </tbody>
         </table>
       </Card>
+
+      <div className="md:hidden space-y-3">
+        {filtered.map((r) => (
+          <Link key={r.id} to="/factures/$id" params={{ id: r.id }} className="block border rounded-xl bg-card p-4 active:bg-muted/50">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="font-mono text-xs text-muted-foreground">{r.facture_number}</div>
+                <div className="font-medium truncate">{r.client?.name ?? "—"}</div>
+              </div>
+              <Badge className={STATUS[r.status]} variant="secondary">{t(`status.${r.status}`)}</Badge>
+            </div>
+            <div className="mt-3 flex items-end justify-between gap-3">
+              <div className="text-xs text-muted-foreground">
+                <div>{fmtDate(r.issue_date, lang)}</div>
+                <div>→ {fmtDate(r.due_date, lang)}</div>
+              </div>
+              <div className="text-lg font-semibold tabular-nums">{fmtEUR(r.total_ttc, lang)}</div>
+            </div>
+          </Link>
+        ))}
+      </div>
+
     </div>
   );
 }
