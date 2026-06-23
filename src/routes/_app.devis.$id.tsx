@@ -493,10 +493,30 @@ function DevisEditor() {
     total_ttc: totals.totalTTC,
     deposit_amount: totals.depositAmount || null,
     notes: [devis.notes, devis.conditions_notes].filter(Boolean).join("\n\n") || null,
+    project_name: devis.project_name,
+    site_address: [devis.site_address_line1, devis.site_address_line2, [devis.site_postcode, devis.site_city].filter(Boolean).join(" "), devis.site_country].filter(Boolean).join(", ") || null,
+    operation_type: devis.operation_type ? t(`devis.moe_op_${devis.operation_type}`) : null,
+    surface_m2: devis.surface_m2,
+    works_budget_ht: devis.works_budget_ht,
+    mission_phases: devis.mission_phases,
+    honoraires_ht: honorairesHT,
+    honoraires_pct: honorairesPct,
+    payment_schedule: devis.payment_schedule.map(r => ({
+      label: r.label,
+      milestone: r.milestone,
+      amount: r.mode === "percent"
+        ? +(totals.totalTTC * (Number(r.value || 0) / 100)).toFixed(2)
+        : Number(r.value || 0),
+      pct: r.mode === "percent" ? Number(r.value || 0) : (totals.totalTTC > 0 ? +((Number(r.value || 0) / totals.totalTTC) * 100).toFixed(1) : 0),
+    })),
   };
 
-  const pdfLines: PdfLine[] = lines.map(l => ({
-    description: [l.description, l.details].filter(Boolean).join("\n"),
+  const pdfLines: PdfLine[] = linesView.map(l => ({
+    description: [
+      l.mission_code ? `[${l.mission_code}] ${l.description}` : l.description,
+      l.details,
+      l.pricing_mode === "percent" && budget > 0 ? `${l.percent_of_budget} % ${t("devis.moe_works_budget").toLowerCase()}` : null,
+    ].filter(Boolean).join("\n"),
     quantity: Number(l.quantity),
     unit: l.unit,
     unit_price_ht: Number(l.unit_price_ht),
