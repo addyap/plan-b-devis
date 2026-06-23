@@ -635,7 +635,7 @@ function DevisEditor() {
   })();
 
   return (
-    <div className="space-y-6 max-w-7xl">
+    <div className="space-y-6 max-w-7xl pb-40 lg:pb-0">
       <div className="flex flex-wrap items-center gap-3 justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate({ to: "/dashboard" })} aria-label={t("devis.back")}>
