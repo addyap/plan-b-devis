@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as VIdRouteImport } from './routes/v.$id'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppFacturesRouteImport } from './routes/_app.factures'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
@@ -25,6 +26,11 @@ const AppRoute = AppRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VIdRoute = VIdRouteImport.update({
+  id: '/v/$id',
+  path: '/v/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
@@ -64,6 +70,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/factures': typeof AppFacturesRouteWithChildren
   '/settings': typeof AppSettingsRoute
+  '/v/$id': typeof VIdRoute
   '/devis/$id': typeof AppDevisIdRoute
   '/factures/$id': typeof AppFacturesIdRoute
 }
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/factures': typeof AppFacturesRouteWithChildren
   '/settings': typeof AppSettingsRoute
+  '/v/$id': typeof VIdRoute
   '/devis/$id': typeof AppDevisIdRoute
   '/factures/$id': typeof AppFacturesIdRoute
 }
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/factures': typeof AppFacturesRouteWithChildren
   '/_app/settings': typeof AppSettingsRoute
+  '/v/$id': typeof VIdRoute
   '/_app/devis/$id': typeof AppDevisIdRoute
   '/_app/factures/$id': typeof AppFacturesIdRoute
 }
@@ -95,6 +104,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/factures'
     | '/settings'
+    | '/v/$id'
     | '/devis/$id'
     | '/factures/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -104,6 +114,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/factures'
     | '/settings'
+    | '/v/$id'
     | '/devis/$id'
     | '/factures/$id'
   id:
@@ -114,6 +125,7 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/factures'
     | '/_app/settings'
+    | '/v/$id'
     | '/_app/devis/$id'
     | '/_app/factures/$id'
   fileRoutesById: FileRoutesById
@@ -121,6 +133,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  VIdRoute: typeof VIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -137,6 +150,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v/$id': {
+      id: '/v/$id'
+      path: '/v/$id'
+      fullPath: '/v/$id'
+      preLoaderRoute: typeof VIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/settings': {
@@ -217,6 +237,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  VIdRoute: VIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
