@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { fmtEUR, fmtDate } from "@/lib/format";
+import { fmtEUR, fmtDate, type Locale } from "@/lib/format";
 
 export const Route = createFileRoute("/_app/factures")({
   component: FacturesPage,
@@ -25,6 +26,8 @@ const STATUS: Record<Row["status"], string> = {
 };
 
 function FacturesPage() {
+  const { t, i18n } = useTranslation();
+  const lang: Locale = i18n.resolvedLanguage?.startsWith("en") ? "en" : "fr";
   const [rows, setRows] = useState<Row[]>([]);
   const [search, setSearch] = useState("");
   useEffect(() => {
@@ -40,21 +43,21 @@ function FacturesPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Factures</h1>
-          <p className="text-sm text-muted-foreground mt-1">Invoices converted from accepted devis.</p>
+          <h1 className="text-3xl font-semibold tracking-tight">{t("factures.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("factures.subtitle")}</p>
         </div>
-        <Input placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
+        <Input placeholder={t("common.search")} value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
       </div>
       <Card className="overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="text-left p-3">Number</th>
-              <th className="text-left p-3">Client</th>
-              <th className="text-left p-3">Issued</th>
-              <th className="text-left p-3">Due</th>
-              <th className="text-right p-3">Total TTC</th>
-              <th className="text-left p-3">Status</th>
+              <th className="text-left p-3">{t("factures.col_number")}</th>
+              <th className="text-left p-3">{t("factures.col_client")}</th>
+              <th className="text-left p-3">{t("factures.col_issued")}</th>
+              <th className="text-left p-3">{t("factures.col_due")}</th>
+              <th className="text-right p-3">{t("factures.col_total")}</th>
+              <th className="text-left p-3">{t("factures.col_status")}</th>
             </tr>
           </thead>
           <tbody>
@@ -62,15 +65,12 @@ function FacturesPage() {
               <tr key={r.id} className="border-t hover:bg-accent/50">
                 <td className="p-3 font-mono"><Link to="/factures/$id" params={{ id: r.id }} className="text-primary hover:underline">{r.facture_number}</Link></td>
                 <td className="p-3">{r.client?.name ?? "—"}</td>
-                <td className="p-3">{fmtDate(r.issue_date)}</td>
-                <td className="p-3">{fmtDate(r.due_date)}</td>
-                <td className="p-3 text-right tabular-nums">{fmtEUR(r.total_ttc)}</td>
-                <td className="p-3"><Badge variant="secondary" className={STATUS[r.status]}>{r.status}</Badge></td>
+                <td className="p-3">{fmtDate(r.issue_date, lang)}</td>
+                <td className="p-3">{fmtDate(r.due_date, lang)}</td>
+                <td className="p-3 text-right tabular-nums">{fmtEUR(r.total_ttc, lang)}</td>
+                <td className="p-3"><Badge className={STATUS[r.status]} variant="secondary">{t(`status.${r.status}`)}</Badge></td>
               </tr>
             ))}
-            {filtered.length === 0 && (
-              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No factures yet. Convert an accepted devis to create one.</td></tr>
-            )}
           </tbody>
         </table>
       </Card>

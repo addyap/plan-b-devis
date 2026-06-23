@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ const EMPTY: Omit<Client, "id"> = {
 };
 
 function ClientsPage() {
+  const { t } = useTranslation();
   const { data, refetch } = useQuery({
     queryKey: ["clients"],
     queryFn: async () => {
@@ -37,14 +39,10 @@ function ClientsPage() {
   const [form, setForm] = useState(EMPTY);
 
   const openNew = () => { setEditing(null); setForm(EMPTY); setOpen(true); };
-  const openEdit = (c: Client) => {
-    setEditing(c);
-    setForm({ ...EMPTY, ...c });
-    setOpen(true);
-  };
+  const openEdit = (c: Client) => { setEditing(c); setForm({ ...EMPTY, ...c }); setOpen(true); };
 
   const save = async () => {
-    if (!form.name.trim()) { toast.error("Name is required"); return; }
+    if (!form.name.trim()) { toast.error(t("clients.name_required")); return; }
     if (editing) {
       const { error } = await supabase.from("clients").update(form).eq("id", editing.id);
       if (error) return toast.error(error.message);
@@ -54,45 +52,49 @@ function ClientsPage() {
     }
     setOpen(false);
     refetch();
-    toast.success("Saved");
+    toast.success(t("common.saved"));
   };
 
   const del = async (c: Client) => {
-    if (!confirm(`Delete client "${c.name}"?`)) return;
+    if (!confirm(t("clients.confirm_delete", { name: c.name }))) return;
     const { error } = await supabase.from("clients").delete().eq("id", c.id);
     if (error) return toast.error(error.message);
     refetch();
   };
 
+  const count = data?.length ?? 0;
+
   return (
     <div className="space-y-8">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Clients</h1>
-          <p className="text-sm text-muted-foreground mt-1">{data?.length ?? 0} clients</p>
+          <h1 className="text-3xl font-semibold tracking-tight">{t("clients.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {count <= 1 ? t("clients.count", { count }) : t("clients.count_plural", { count })}
+          </p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button onClick={openNew}><Plus className="size-4" /> New client</Button></DialogTrigger>
+          <DialogTrigger asChild><Button onClick={openNew}><Plus className="size-4" /> {t("clients.new")}</Button></DialogTrigger>
           <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle>{editing ? "Edit client" : "New client"}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editing ? t("clients.edit") : t("clients.new")}</DialogTitle></DialogHeader>
             <div className="grid gap-3">
-              <Field label="Name *" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
-              <Field label="Contact name" value={form.contact_name ?? ""} onChange={(v) => setForm({ ...form, contact_name: v })} />
+              <Field label={t("clients.name")} value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
+              <Field label={t("clients.contact")} value={form.contact_name ?? ""} onChange={(v) => setForm({ ...form, contact_name: v })} />
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Email" value={form.email ?? ""} onChange={(v) => setForm({ ...form, email: v })} />
-                <Field label="Phone" value={form.phone ?? ""} onChange={(v) => setForm({ ...form, phone: v })} />
+                <Field label={t("clients.email")} value={form.email ?? ""} onChange={(v) => setForm({ ...form, email: v })} />
+                <Field label={t("clients.phone")} value={form.phone ?? ""} onChange={(v) => setForm({ ...form, phone: v })} />
               </div>
-              <Field label="Address" value={form.address_line1 ?? ""} onChange={(v) => setForm({ ...form, address_line1: v })} />
-              <Field label="Address line 2" value={form.address_line2 ?? ""} onChange={(v) => setForm({ ...form, address_line2: v })} />
+              <Field label={t("clients.address")} value={form.address_line1 ?? ""} onChange={(v) => setForm({ ...form, address_line1: v })} />
+              <Field label={t("clients.address2")} value={form.address_line2 ?? ""} onChange={(v) => setForm({ ...form, address_line2: v })} />
               <div className="grid grid-cols-3 gap-3">
-                <Field label="Postcode" value={form.postcode ?? ""} onChange={(v) => setForm({ ...form, postcode: v })} />
-                <Field label="City" value={form.city ?? ""} onChange={(v) => setForm({ ...form, city: v })} />
-                <Field label="Country" value={form.country ?? ""} onChange={(v) => setForm({ ...form, country: v })} />
+                <Field label={t("clients.postcode")} value={form.postcode ?? ""} onChange={(v) => setForm({ ...form, postcode: v })} />
+                <Field label={t("clients.city")} value={form.city ?? ""} onChange={(v) => setForm({ ...form, city: v })} />
+                <Field label={t("clients.country")} value={form.country ?? ""} onChange={(v) => setForm({ ...form, country: v })} />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button onClick={save}>Save</Button>
+              <Button variant="ghost" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
+              <Button onClick={save}>{t("common.save")}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -102,10 +104,10 @@ function ClientsPage() {
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="text-left px-4 py-3">Name</th>
-              <th className="text-left px-4 py-3">Contact</th>
-              <th className="text-left px-4 py-3">City</th>
-              <th className="text-left px-4 py-3">Email</th>
+              <th className="text-left px-4 py-3">{t("clients.col_name")}</th>
+              <th className="text-left px-4 py-3">{t("clients.col_contact")}</th>
+              <th className="text-left px-4 py-3">{t("clients.col_city")}</th>
+              <th className="text-left px-4 py-3">{t("clients.col_email")}</th>
               <th className="px-4 py-3 w-24"></th>
             </tr>
           </thead>
@@ -122,7 +124,7 @@ function ClientsPage() {
                 </td>
               </tr>
             ))}
-            {(data ?? []).length === 0 && <tr><td colSpan={5} className="text-center py-12 text-muted-foreground">No clients yet.</td></tr>}
+            {(data ?? []).length === 0 && <tr><td colSpan={5} className="text-center py-12 text-muted-foreground">{t("clients.empty")}</td></tr>}
           </tbody>
         </table>
       </div>
