@@ -1130,6 +1130,71 @@ function DevisEditor() {
               <Textarea rows={2} value={devis.notes ?? ""} onChange={(e) => update({ notes: e.target.value })} />
             </Field>
           </Card>
+
+          {/* PAYMENT SCHEDULE */}
+          <Card className="p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t("devis.section_schedule")}</h2>
+              <Button size="sm" variant="outline" onClick={() => update({ payment_schedule: [...devis.payment_schedule, { label: "", mode: "percent", value: 0, milestone: "" }] })}>
+                <Plus className="size-4" /> {t("devis.schedule_add")}
+              </Button>
+            </div>
+            {devis.payment_schedule.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-6 border border-dashed rounded-md">{t("devis.schedule_empty")}</p>
+            ) : (
+              <div className="space-y-2">
+                {devis.payment_schedule.map((row, i) => {
+                  const amt = row.mode === "percent" ? totals.totalTTC * (Number(row.value || 0) / 100) : Number(row.value || 0);
+                  return (
+                    <div key={i} className="grid grid-cols-12 gap-2 items-end border rounded-md p-2 bg-card">
+                      <div className="col-span-12 sm:col-span-4">
+                        <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.schedule_label")}</Label>
+                        <Input value={row.label} placeholder={t("devis.schedule_label_ph")} onChange={(e) => {
+                          const next = [...devis.payment_schedule]; next[i] = { ...row, label: e.target.value }; update({ payment_schedule: next });
+                        }} />
+                      </div>
+                      <div className="col-span-6 sm:col-span-3">
+                        <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.schedule_amount")}</Label>
+                        <div className="flex gap-1">
+                          <Input type="number" step="0.01" min={0} className="text-right tabular-nums" value={row.value} onChange={(e) => {
+                            const next = [...devis.payment_schedule]; next[i] = { ...row, value: Number(e.target.value) }; update({ payment_schedule: next });
+                          }} />
+                          <ToggleUnit value={row.mode} onChange={(v) => {
+                            const next = [...devis.payment_schedule]; next[i] = { ...row, mode: v }; update({ payment_schedule: next });
+                          }} />
+                        </div>
+                      </div>
+                      <div className="col-span-6 sm:col-span-4">
+                        <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.schedule_milestone")}</Label>
+                        <Input value={row.milestone} placeholder={t("devis.schedule_milestone_ph")} onChange={(e) => {
+                          const next = [...devis.payment_schedule]; next[i] = { ...row, milestone: e.target.value }; update({ payment_schedule: next });
+                        }} />
+                      </div>
+                      <div className="col-span-10 sm:col-span-1 text-right tabular-nums text-xs text-muted-foreground">
+                        {fmtEUR(amt, uiLang)}
+                      </div>
+                      <div className="col-span-2 sm:col-span-12 sm:flex sm:justify-end">
+                        <Button variant="ghost" size="icon" onClick={() => {
+                          update({ payment_schedule: devis.payment_schedule.filter((_, j) => j !== i) });
+                        }}>
+                          <Trash2 className="size-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {(() => {
+                  const total = devis.payment_schedule.reduce((s, r) => s + (r.mode === "percent" ? totals.totalTTC * (Number(r.value || 0) / 100) : Number(r.value || 0)), 0);
+                  return (
+                    <div className="flex justify-between text-xs pt-2 border-t">
+                      <span className="text-muted-foreground">{t("devis.schedule_total")}</span>
+                      <span className="tabular-nums font-semibold">{fmtEUR(total, uiLang)} <span className="text-muted-foreground font-normal">· {t("devis.schedule_remaining")}: {fmtEUR(totals.totalTTC - total, uiLang)}</span></span>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </Card>
         </div>
 
         {/* SUMMARY sidebar */}
