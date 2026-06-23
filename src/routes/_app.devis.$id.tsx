@@ -25,9 +25,17 @@ export const Route = createFileRoute("/_app/devis/$id")({
   component: DevisEditor,
 });
 
-type LineType = "produit" | "prestation" | "forfait" | "remise";
+type LineType = "produit" | "prestation" | "forfait" | "moe" | "remise";
 type DiscountType = "percent" | "amount";
+type PricingMode = "amount" | "percent";
 type Status = "draft" | "sent" | "accepted" | "declined" | "expired";
+
+type ScheduleRow = {
+  label: string;
+  mode: DiscountType;     // percent of total TTC, or fixed € amount
+  value: number;
+  milestone: string;
+};
 
 type Line = {
   id?: string;
@@ -41,6 +49,9 @@ type Line = {
   discount_value: number;
   vat_rate: number;
   sort_order: number;
+  mission_code: string | null;
+  pricing_mode: PricingMode;
+  percent_of_budget: number;
 };
 
 type Devis = {
@@ -67,6 +78,18 @@ type Devis = {
   signature_client_name: string | null;
   signature_date: string | null;
   sent_at: string | null;
+  // MOE
+  project_name: string | null;
+  site_address_line1: string | null;
+  site_address_line2: string | null;
+  site_postcode: string | null;
+  site_city: string | null;
+  site_country: string | null;
+  operation_type: string | null;
+  surface_m2: number | null;
+  works_budget_ht: number | null;
+  mission_phases: string[];
+  payment_schedule: ScheduleRow[];
 };
 
 type ClientRow = {
@@ -91,11 +114,23 @@ type ClientDraft = Omit<ClientRow, "id">;
 const UNIT_KEYS = ["unite", "heure", "jour", "m2", "m3", "ml", "forfait", "lot"] as const;
 const VAT_RATES = [0, 5.5, 10, 20] as const;
 const VALIDITY_OPTIONS = [15, 30, 45, 60, 90] as const;
-const LINE_TYPES: LineType[] = ["produit", "prestation", "forfait", "remise"];
+const LINE_TYPES: LineType[] = ["produit", "prestation", "forfait", "moe", "remise"];
 const STATUSES: Status[] = ["draft", "sent", "accepted", "declined", "expired"];
 const PAYMENT_TERM_KEYS = ["cash", "30d", "5050", "custom"] as const;
 const PAYMENT_METHOD_KEYS = ["transfer", "check", "card", "cash"] as const;
 const LEGAL_MENTION_KEYS = ["free", "vat293b", "late", "discount"] as const;
+const OPERATION_KEYS = ["neuf", "renov", "extension", "reamenagement", "interieur", "autre"] as const;
+const MISSION_CODES = ["ESQ", "APS", "APD", "PRO", "ACT", "VISA", "DET", "AOR"] as const;
+const MISSION_LABELS: Record<string, { fr: string; en: string }> = {
+  ESQ: { fr: "Esquisse", en: "Preliminary sketch" },
+  APS: { fr: "Avant-Projet Sommaire", en: "Outline design" },
+  APD: { fr: "Avant-Projet Définitif", en: "Detailed design" },
+  PRO: { fr: "Projet", en: "Project design" },
+  ACT: { fr: "Assistance Contrats de Travaux", en: "Tender assistance" },
+  VISA: { fr: "Visa des études d'exécution", en: "Execution studies review" },
+  DET: { fr: "Direction de l'Exécution des Travaux", en: "Works supervision" },
+  AOR: { fr: "Assistance aux Opérations de Réception", en: "Handover assistance" },
+};
 
 const emptyClient = (): ClientDraft => ({
   name: "",
@@ -224,6 +259,17 @@ function DevisEditor() {
           signature_client_name: dd.signature_client_name,
           signature_date: dd.signature_date,
           sent_at: dd.sent_at,
+          project_name: dd.project_name ?? null,
+          site_address_line1: dd.site_address_line1 ?? null,
+          site_address_line2: dd.site_address_line2 ?? null,
+          site_postcode: dd.site_postcode ?? null,
+          site_city: dd.site_city ?? null,
+          site_country: dd.site_country ?? null,
+          operation_type: dd.operation_type ?? null,
+          surface_m2: dd.surface_m2 != null ? Number(dd.surface_m2) : null,
+          works_budget_ht: dd.works_budget_ht != null ? Number(dd.works_budget_ht) : null,
+          mission_phases: dd.mission_phases ?? [],
+          payment_schedule: Array.isArray(dd.payment_schedule) ? dd.payment_schedule : [],
         });
       }
       setLines(((l.data ?? []) as any[]).map(x => ({
@@ -238,6 +284,9 @@ function DevisEditor() {
         discount_value: Number(x.discount_value ?? 0),
         vat_rate: Number(x.vat_rate ?? 20),
         sort_order: x.sort_order ?? 0,
+        mission_code: x.mission_code ?? null,
+        pricing_mode: (x.pricing_mode ?? "amount") as PricingMode,
+        percent_of_budget: Number(x.percent_of_budget ?? 0),
       })));
       setClients((c.data ?? []) as ClientRow[]);
       setProfile(p.data as unknown as PdfProfile);
@@ -257,16 +306,34 @@ function DevisEditor() {
 
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
 
-  const totals = useMemo(
-    () => devis
-      ? computeTotals(lines, devis.global_discount_type, devis.global_discount_value, devis.deposit_type, devis.deposit_value)
-      : null,
-    [lines, devis?.global_discount_type, devis?.global_discount_value, devis?.deposit_type, devis?.deposit_value]
-  );
+  const totals = useMemo(() => {
+    if (!devis) return null;
+    const b = Number(devis.works_budget_ht || 0);
+    const view = lines.map(l =>
+      l.pricing_mode === "percent"
+        ? { ...l, unit_price_ht: +(b * (Number(l.percent_of_budget || 0) / 100)).toFixed(2), quantity: 1 }
+        : l,
+    );
+    return computeTotals(view, devis.global_discount_type, devis.global_discount_value, devis.deposit_type, devis.deposit_value);
+  }, [lines, devis?.global_discount_type, devis?.global_discount_value, devis?.deposit_type, devis?.deposit_value, devis?.works_budget_ht]);
 
   if (!devis || !profile || !totals) return <div className="text-muted-foreground">{t("common.loading")}</div>;
 
   const update = (patch: Partial<Devis>) => setDevis({ ...devis, ...patch });
+
+  // For percent-mode MOE lines, derive unit_price from works budget
+  const budget = Number(devis.works_budget_ht || 0);
+  const linesView: Line[] = lines.map(l =>
+    l.pricing_mode === "percent"
+      ? { ...l, unit_price_ht: +(budget * (Number(l.percent_of_budget || 0) / 100)).toFixed(2), quantity: 1, unit: "forfait" }
+      : l,
+  );
+
+  const honorairesHT = +linesView
+    .filter(l => l.line_type === "moe")
+    .reduce((s, l) => s + lineNetHT(l), 0)
+    .toFixed(2);
+  const honorairesPct = budget > 0 ? +((honorairesHT / budget) * 100).toFixed(2) : 0;
 
   const addLine = (init?: Partial<Line>) => setLines([...lines, {
     line_type: "prestation",
@@ -279,11 +346,14 @@ function DevisEditor() {
     discount_value: 0,
     vat_rate: Number((profile as any)?.vat_rate ?? 20),
     sort_order: lines.length,
+    mission_code: null,
+    pricing_mode: "amount",
+    percent_of_budget: 0,
     ...init,
-  }]);
+  } as Line]);
   const updateLine = (i: number, patch: Partial<Line>) => {
     const next = [...lines];
-    next[i] = { ...next[i], ...patch };
+    next[i] = { ...next[i], ...patch } as Line;
     setLines(next);
   };
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i).map((l, idx) => ({ ...l, sort_order: idx })));
@@ -361,15 +431,26 @@ function DevisEditor() {
         legal_mentions: devis.legal_mentions,
         signature_client_name: devis.signature_client_name,
         signature_date: devis.signature_date,
+        project_name: devis.project_name,
+        site_address_line1: devis.site_address_line1,
+        site_address_line2: devis.site_address_line2,
+        site_postcode: devis.site_postcode,
+        site_city: devis.site_city,
+        site_country: devis.site_country,
+        operation_type: devis.operation_type,
+        surface_m2: devis.surface_m2,
+        works_budget_ht: devis.works_budget_ht,
+        mission_phases: devis.mission_phases,
+        payment_schedule: devis.payment_schedule,
       };
 
       const { error: e1 } = await supabase.from("devis").update(payload).eq("id", id);
       if (e1) { toast.error(e1.message); setSaving(false); return false; }
 
       await supabase.from("devis_lines").delete().eq("devis_id", id);
-      if (lines.length) {
+      if (linesView.length) {
         const { error: e2 } = await supabase.from("devis_lines").insert(
-          lines.map((l, i) => ({
+          linesView.map((l, i) => ({
             devis_id: id,
             line_type: l.line_type,
             description: l.description,
@@ -382,6 +463,9 @@ function DevisEditor() {
             vat_rate: l.vat_rate,
             line_total_ht: lineNetHT(l),
             sort_order: i,
+            mission_code: l.mission_code,
+            pricing_mode: l.pricing_mode,
+            percent_of_budget: l.percent_of_budget,
           })),
         );
         if (e2) { toast.error(e2.message); setSaving(false); return false; }
@@ -409,10 +493,30 @@ function DevisEditor() {
     total_ttc: totals.totalTTC,
     deposit_amount: totals.depositAmount || null,
     notes: [devis.notes, devis.conditions_notes].filter(Boolean).join("\n\n") || null,
+    project_name: devis.project_name,
+    site_address: [devis.site_address_line1, devis.site_address_line2, [devis.site_postcode, devis.site_city].filter(Boolean).join(" "), devis.site_country].filter(Boolean).join(", ") || null,
+    operation_type: devis.operation_type ? t(`devis.moe_op_${devis.operation_type}`) : null,
+    surface_m2: devis.surface_m2,
+    works_budget_ht: devis.works_budget_ht,
+    mission_phases: devis.mission_phases,
+    honoraires_ht: honorairesHT,
+    honoraires_pct: honorairesPct,
+    payment_schedule: devis.payment_schedule.map(r => ({
+      label: r.label,
+      milestone: r.milestone,
+      amount: r.mode === "percent"
+        ? +(totals.totalTTC * (Number(r.value || 0) / 100)).toFixed(2)
+        : Number(r.value || 0),
+      pct: r.mode === "percent" ? Number(r.value || 0) : (totals.totalTTC > 0 ? +((Number(r.value || 0) / totals.totalTTC) * 100).toFixed(1) : 0),
+    })),
   };
 
-  const pdfLines: PdfLine[] = lines.map(l => ({
-    description: [l.description, l.details].filter(Boolean).join("\n"),
+  const pdfLines: PdfLine[] = linesView.map(l => ({
+    description: [
+      l.mission_code ? `[${l.mission_code}] ${l.description}` : l.description,
+      l.details,
+      l.pricing_mode === "percent" && budget > 0 ? `${l.percent_of_budget} % ${t("devis.moe_works_budget").toLowerCase()}` : null,
+    ].filter(Boolean).join("\n"),
     quantity: Number(l.quantity),
     unit: l.unit,
     unit_price_ht: Number(l.unit_price_ht),
@@ -500,8 +604,8 @@ function DevisEditor() {
         notes: devis.notes,
       }).select("id").single();
       if (fErr || !fac) throw new Error(fErr?.message || "Insertion failed");
-      if (lines.length) {
-        await supabase.from("facture_lines").insert(lines.map((l, i) => ({
+      if (linesView.length) {
+        await supabase.from("facture_lines").insert(linesView.map((l, i) => ({
           facture_id: fac.id,
           description: l.description,
           quantity: l.quantity,
@@ -713,6 +817,66 @@ function DevisEditor() {
             )}
           </Card>
 
+          {/* MOE PROJECT INFO */}
+          <Card className="p-5 space-y-4">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t("devis.section_moe")}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label={t("devis.moe_project_name")}>
+                <Input value={devis.project_name ?? ""} onChange={(e) => update({ project_name: e.target.value })} />
+              </Field>
+              <Field label={t("devis.moe_operation_type")}>
+                <Select value={devis.operation_type ?? ""} onValueChange={(v) => update({ operation_type: v })}>
+                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent>
+                    {OPERATION_KEYS.map(k => <SelectItem key={k} value={k}>{t(`devis.moe_op_${k}`)}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+            <Field label={t("devis.moe_site_address")} help={t("devis.moe_site_address_help")}>
+              <div className="space-y-2">
+                <Input placeholder="Adresse" value={devis.site_address_line1 ?? ""} onChange={(e) => update({ site_address_line1: e.target.value })} />
+                <Input placeholder="Complément" value={devis.site_address_line2 ?? ""} onChange={(e) => update({ site_address_line2: e.target.value })} />
+                <div className="grid grid-cols-3 gap-2">
+                  <Input placeholder="CP" value={devis.site_postcode ?? ""} onChange={(e) => update({ site_postcode: e.target.value })} />
+                  <Input placeholder="Ville" value={devis.site_city ?? ""} onChange={(e) => update({ site_city: e.target.value })} />
+                  <Input placeholder="Pays" value={devis.site_country ?? ""} onChange={(e) => update({ site_country: e.target.value })} />
+                </div>
+              </div>
+            </Field>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label={t("devis.moe_surface")}>
+                <Input type="number" step="0.01" min={0} className="text-right tabular-nums" value={devis.surface_m2 ?? ""} onChange={(e) => update({ surface_m2: e.target.value === "" ? null : Number(e.target.value) })} />
+              </Field>
+              <Field label={t("devis.moe_works_budget")} help={t("devis.moe_works_budget_help")}>
+                <Input type="number" step="0.01" min={0} className="text-right tabular-nums" value={devis.works_budget_ht ?? ""} onChange={(e) => update({ works_budget_ht: e.target.value === "" ? null : Number(e.target.value) })} />
+              </Field>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">{t("devis.moe_phases")}</Label>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {MISSION_CODES.map(code => {
+                  const active = devis.mission_phases.includes(code);
+                  return (
+                    <button
+                      key={code}
+                      type="button"
+                      onClick={() => update({
+                        mission_phases: active
+                          ? devis.mission_phases.filter(x => x !== code)
+                          : [...devis.mission_phases, code],
+                      })}
+                      className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                      title={MISSION_LABELS[code][devis.language]}
+                    >
+                      {code}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </Card>
+
           {/* PROJECT */}
           <Card className="p-5 space-y-4">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t("devis.section_project")}</h2>
@@ -784,9 +948,42 @@ function DevisEditor() {
                           <Textarea rows={2} value={l.details} onChange={(e) => updateLine(i, { details: e.target.value })} placeholder={t("devis.line_details_ph")} />
                         </div>
 
+                        {l.line_type === "moe" && (
+                          <>
+                            <div className="col-span-12 sm:col-span-4">
+                              <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.moe_mission")}</Label>
+                              <Select value={l.mission_code ?? "__none"} onValueChange={(v) => updateLine(i, { mission_code: v === "__none" ? null : v })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__none">{t("devis.moe_mission_none")}</SelectItem>
+                                  {MISSION_CODES.map(code => (
+                                    <SelectItem key={code} value={code}>
+                                      {code} — {MISSION_LABELS[code][devis.language]}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="col-span-12 sm:col-span-4">
+                              <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.moe_pricing_mode")}</Label>
+                              <div className="inline-flex rounded-md border bg-background overflow-hidden text-xs h-9">
+                                <button type="button" className={`px-3 ${l.pricing_mode === "amount" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`} onClick={() => updateLine(i, { pricing_mode: "amount" })}>€ {t("devis.moe_pricing_amount")}</button>
+                                <button type="button" className={`px-3 ${l.pricing_mode === "percent" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`} onClick={() => updateLine(i, { pricing_mode: "percent" })}>% {t("devis.moe_pricing_percent")}</button>
+                              </div>
+                            </div>
+                            {l.pricing_mode === "percent" && (
+                              <div className="col-span-12 sm:col-span-4">
+                                <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.moe_percent_of_budget")}</Label>
+                                <Input type="number" step="0.01" min={0} className="text-right tabular-nums" value={l.percent_of_budget} onChange={(e) => updateLine(i, { percent_of_budget: Number(e.target.value) })} />
+                                {!budget && <p className="text-[10px] text-amber-600 mt-1">{t("devis.moe_no_budget")}</p>}
+                              </div>
+                            )}
+                          </>
+                        )}
+
                         <div className="col-span-6 sm:col-span-2">
                           <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.line_qty")}</Label>
-                          <Input type="number" step="0.01" min={0} className="text-right tabular-nums" value={l.quantity} onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })} />
+                          <Input type="number" step="0.01" min={0} className="text-right tabular-nums" value={l.quantity} onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })} disabled={l.line_type === "moe" && l.pricing_mode === "percent"} />
                         </div>
                         <div className="col-span-6 sm:col-span-2">
                           <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.line_unit")}</Label>
@@ -802,7 +999,7 @@ function DevisEditor() {
                         </div>
                         <div className="col-span-6 sm:col-span-2">
                           <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.line_pu")}</Label>
-                          <Input type="number" step="0.01" className="text-right tabular-nums" value={l.unit_price_ht} onChange={(e) => updateLine(i, { unit_price_ht: Number(e.target.value) })} />
+                          <Input type="number" step="0.01" className="text-right tabular-nums" value={l.line_type === "moe" && l.pricing_mode === "percent" ? +(budget * (Number(l.percent_of_budget || 0) / 100)).toFixed(2) : l.unit_price_ht} onChange={(e) => updateLine(i, { unit_price_ht: Number(e.target.value) })} disabled={l.line_type === "moe" && l.pricing_mode === "percent"} />
                         </div>
                         <div className="col-span-6 sm:col-span-3">
                           <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.line_discount")}</Label>
@@ -933,11 +1130,90 @@ function DevisEditor() {
               <Textarea rows={2} value={devis.notes ?? ""} onChange={(e) => update({ notes: e.target.value })} />
             </Field>
           </Card>
+
+          {/* PAYMENT SCHEDULE */}
+          <Card className="p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t("devis.section_schedule")}</h2>
+              <Button size="sm" variant="outline" onClick={() => update({ payment_schedule: [...devis.payment_schedule, { label: "", mode: "percent", value: 0, milestone: "" }] })}>
+                <Plus className="size-4" /> {t("devis.schedule_add")}
+              </Button>
+            </div>
+            {devis.payment_schedule.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-6 border border-dashed rounded-md">{t("devis.schedule_empty")}</p>
+            ) : (
+              <div className="space-y-2">
+                {devis.payment_schedule.map((row, i) => {
+                  const amt = row.mode === "percent" ? totals.totalTTC * (Number(row.value || 0) / 100) : Number(row.value || 0);
+                  return (
+                    <div key={i} className="grid grid-cols-12 gap-2 items-end border rounded-md p-2 bg-card">
+                      <div className="col-span-12 sm:col-span-4">
+                        <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.schedule_label")}</Label>
+                        <Input value={row.label} placeholder={t("devis.schedule_label_ph")} onChange={(e) => {
+                          const next = [...devis.payment_schedule]; next[i] = { ...row, label: e.target.value }; update({ payment_schedule: next });
+                        }} />
+                      </div>
+                      <div className="col-span-6 sm:col-span-3">
+                        <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.schedule_amount")}</Label>
+                        <div className="flex gap-1">
+                          <Input type="number" step="0.01" min={0} className="text-right tabular-nums" value={row.value} onChange={(e) => {
+                            const next = [...devis.payment_schedule]; next[i] = { ...row, value: Number(e.target.value) }; update({ payment_schedule: next });
+                          }} />
+                          <ToggleUnit value={row.mode} onChange={(v) => {
+                            const next = [...devis.payment_schedule]; next[i] = { ...row, mode: v }; update({ payment_schedule: next });
+                          }} />
+                        </div>
+                      </div>
+                      <div className="col-span-6 sm:col-span-4">
+                        <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.schedule_milestone")}</Label>
+                        <Input value={row.milestone} placeholder={t("devis.schedule_milestone_ph")} onChange={(e) => {
+                          const next = [...devis.payment_schedule]; next[i] = { ...row, milestone: e.target.value }; update({ payment_schedule: next });
+                        }} />
+                      </div>
+                      <div className="col-span-10 sm:col-span-1 text-right tabular-nums text-xs text-muted-foreground">
+                        {fmtEUR(amt, uiLang)}
+                      </div>
+                      <div className="col-span-2 sm:col-span-12 sm:flex sm:justify-end">
+                        <Button variant="ghost" size="icon" onClick={() => {
+                          update({ payment_schedule: devis.payment_schedule.filter((_, j) => j !== i) });
+                        }}>
+                          <Trash2 className="size-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {(() => {
+                  const total = devis.payment_schedule.reduce((s, r) => s + (r.mode === "percent" ? totals.totalTTC * (Number(r.value || 0) / 100) : Number(r.value || 0)), 0);
+                  return (
+                    <div className="flex justify-between text-xs pt-2 border-t">
+                      <span className="text-muted-foreground">{t("devis.schedule_total")}</span>
+                      <span className="tabular-nums font-semibold">{fmtEUR(total, uiLang)} <span className="text-muted-foreground font-normal">· {t("devis.schedule_remaining")}: {fmtEUR(totals.totalTTC - total, uiLang)}</span></span>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </Card>
         </div>
 
         {/* SUMMARY sidebar */}
         <Card className="p-5 space-y-4 h-fit lg:sticky lg:top-4">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t("devis.section_summary")}</h2>
+
+          {honorairesHT > 0 && (
+            <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-0.5">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">{t("devis.moe_honoraires_total")}</span>
+                <span className="font-semibold tabular-nums">{fmtEUR(honorairesHT, uiLang)}</span>
+              </div>
+              {budget > 0 && (
+                <div className="text-[11px] text-right text-muted-foreground">
+                  {t("devis.moe_honoraires_pct", { pct: honorairesPct })}
+                </div>
+              )}
+            </div>
+          )}
 
           <Row k={t("devis.summary_gross")} v={fmtEUR(totals.subtotalHT, uiLang)} />
 

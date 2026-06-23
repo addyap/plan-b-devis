@@ -42,6 +42,19 @@ export const L = {
     en: "Quote received before work begins — Approved — agreed, on …………  Signature:",
     fr: "Devis reçu avant l'exécution des travaux — Bon pour accord, le …………  Signature :",
   },
+  projectName: { en: "Project", fr: "Projet" },
+  siteAddress: { en: "Site address", fr: "Adresse du chantier" },
+  operationType: { en: "Operation", fr: "Type d'opération" },
+  surface: { en: "Surface", fr: "Surface" },
+  worksBudget: { en: "Works budget (excl. VAT)", fr: "Montant des travaux HT" },
+  missionPhases: { en: "Mission phases", fr: "Phases de mission" },
+  mission: { en: "Mission", fr: "Mission" },
+  honoraires: { en: "Fees", fr: "Honoraires" },
+  totalHonoraires: { en: "Total fees (excl. VAT)", fr: "Total honoraires HT" },
+  pctOfWorks: { en: "of works budget", fr: "du montant des travaux" },
+  paymentSchedule: { en: "Payment schedule", fr: "Échéancier de paiement" },
+  milestone: { en: "Milestone", fr: "Jalon" },
+  amount: { en: "Amount", fr: "Montant" },
 };
 
 export function t(key: keyof typeof L, lang: Lang) {

@@ -25,10 +25,21 @@ export type PdfClient = {
 
 export type PdfLine = { description: string; quantity: number; unit: string | null; unit_price_ht: number; line_total_ht: number };
 
+export type SchedulePdfRow = { label: string; milestone: string; amount: number; pct: number };
+
 export type PdfDevis = {
   devis_number: string; issue_date: string; validity_until: string; language: Lang;
   project_description: string | null; project_start: string | null; project_duration: string | null;
   subtotal_ht: number; vat_amount: number; total_ttc: number; deposit_amount: number | null; notes: string | null;
+  project_name?: string | null;
+  site_address?: string | null;
+  operation_type?: string | null;
+  surface_m2?: number | null;
+  works_budget_ht?: number | null;
+  mission_phases?: string[];
+  honoraires_ht?: number;
+  honoraires_pct?: number;
+  payment_schedule?: SchedulePdfRow[];
 };
 
 export type PdfFacture = {
@@ -89,7 +100,7 @@ type CommonInput = {
   kind: DocKind;
   number: string;
   issueDate: string;
-  rightDateLabel: string;   // e.g. "Valable jusqu'au" or "Échéance"
+  rightDateLabel: string;
   rightDate: string;
   language: Lang;
   projectDescription: string | null;
@@ -101,6 +112,16 @@ type CommonInput = {
   depositAmount: number | null;
   notes: string | null;
   lines: PdfLine[];
+  // MOE extras (devis only)
+  projectName?: string | null;
+  siteAddress?: string | null;
+  operationType?: string | null;
+  surfaceM2?: number | null;
+  worksBudgetHt?: number | null;
+  missionPhases?: string[];
+  honorairesHt?: number;
+  honorairesPct?: number;
+  paymentSchedule?: SchedulePdfRow[];
 };
 
 async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClient): Promise<jsPDF> {
@@ -204,6 +225,27 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
     y = py + 4;
   }
 
+  // MOE project block (devis)
+  if (input.kind === "devis" && (input.projectName || input.siteAddress || input.operationType || input.surfaceM2 || input.worksBudgetHt || (input.missionPhases && input.missionPhases.length))) {
+    const rows: [string, string][] = [];
+    if (input.projectName) rows.push([L.projectName[lang], input.projectName]);
+    if (input.siteAddress) rows.push([L.siteAddress[lang], input.siteAddress]);
+    if (input.operationType) rows.push([L.operationType[lang], input.operationType]);
+    if (input.surfaceM2) rows.push([L.surface[lang], `${input.surfaceM2} m²`]);
+    if (input.worksBudgetHt) rows.push([L.worksBudget[lang], fmtMoney(Number(input.worksBudgetHt), lang)]);
+    if (input.missionPhases && input.missionPhases.length) rows.push([L.missionPhases[lang], input.missionPhases.join(" · ")]);
+    const boxH = 6 + rows.length * 4.6 + 3;
+    doc.setFillColor(247, 248, 250).rect(M, y, pageW - M * 2, boxH, "F");
+    doc.setDrawColor(...GOLD).setLineWidth(1.2).line(M, y, M, y + boxH);
+    rows.forEach((r, i) => {
+      doc.setFont("helvetica", "bold").setFontSize(8).setTextColor(...NAVY);
+      doc.text(r[0].toUpperCase(), M + 3, y + 6 + i * 4.6);
+      doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(30);
+      doc.text(r[1], M + 55, y + 6 + i * 4.6);
+    });
+    y += boxH + 4;
+  }
+
   // Lines table
   autoTable(doc, {
     startY: y,
@@ -265,6 +307,40 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
   }
 
   y += 4;
+
+  // Honoraires summary (MOE)
+  if (input.kind === "devis" && input.honorairesHt && input.worksBudgetHt) {
+    doc.setFillColor(247, 248, 250).rect(M, y, pageW - M * 2, 11, "F");
+    doc.setDrawColor(...GOLD).setLineWidth(1.2).line(M, y, M, y + 11);
+    doc.setFont("helvetica", "bold").setFontSize(9).setTextColor(...NAVY);
+    doc.text(L.totalHonoraires[lang], M + 3, y + 7);
+    const pctStr = `${String(input.honorairesPct ?? 0).replace(".", lang === "fr" ? "," : ".")} % ${L.pctOfWorks[lang]}`;
+    doc.text(`${fmtMoney(input.honorairesHt, lang)}  \u00B7  ${pctStr}`, pageW - M - 3, y + 7, { align: "right" });
+    y += 15;
+  }
+
+  // Payment schedule (MOE)
+  if (input.kind === "devis" && input.paymentSchedule && input.paymentSchedule.length) {
+    doc.setFont("helvetica", "bold").setFontSize(8).setTextColor(...NAVY);
+    doc.text(L.paymentSchedule[lang].toUpperCase(), M, y); y += 2;
+    autoTable(doc, {
+      startY: y,
+      margin: { left: M, right: M },
+      head: [[L.description[lang], L.milestone[lang], "%", L.amount[lang]]],
+      body: input.paymentSchedule.map(r => [
+        r.label || "—",
+        r.milestone || "—",
+        `${String(r.pct).replace(".", lang === "fr" ? "," : ".")} %`,
+        fmtMoney(r.amount, lang),
+      ]),
+      headStyles: { fillColor: BRICK, textColor: 255, fontStyle: "bold", fontSize: 9 },
+      bodyStyles: { fontSize: 9, textColor: 30 },
+      columnStyles: { 2: { halign: "right", cellWidth: 24 }, 3: { halign: "right", cellWidth: 32 } },
+      styles: { cellPadding: 2.5, lineColor: [226, 228, 232], lineWidth: 0.2 },
+    });
+    // @ts-expect-error autotable side-effect
+    y = doc.lastAutoTable.finalY + 6;
+  }
 
   // Conditions (devis only includes validity & "Devis gratuit")
   const ensureSpace = (need: number) => { if (y + need > pageH - 30) { doc.addPage(); y = M; } };
@@ -341,6 +417,15 @@ export async function generateDevisPdf(
       depositAmount: devis.deposit_amount,
       notes: devis.notes,
       lines,
+      projectName: devis.project_name ?? null,
+      siteAddress: devis.site_address ?? null,
+      operationType: devis.operation_type ?? null,
+      surfaceM2: devis.surface_m2 ?? null,
+      worksBudgetHt: devis.works_budget_ht ?? null,
+      missionPhases: devis.mission_phases ?? [],
+      honorairesHt: devis.honoraires_ht ?? 0,
+      honorairesPct: devis.honoraires_pct ?? 0,
+      paymentSchedule: devis.payment_schedule ?? [],
     },
     profile,
     client,
