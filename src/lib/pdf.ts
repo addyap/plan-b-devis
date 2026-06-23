@@ -25,10 +25,21 @@ export type PdfClient = {
 
 export type PdfLine = { description: string; quantity: number; unit: string | null; unit_price_ht: number; line_total_ht: number };
 
+export type SchedulePdfRow = { label: string; milestone: string; amount: number; pct: number };
+
 export type PdfDevis = {
   devis_number: string; issue_date: string; validity_until: string; language: Lang;
   project_description: string | null; project_start: string | null; project_duration: string | null;
   subtotal_ht: number; vat_amount: number; total_ttc: number; deposit_amount: number | null; notes: string | null;
+  project_name?: string | null;
+  site_address?: string | null;
+  operation_type?: string | null;
+  surface_m2?: number | null;
+  works_budget_ht?: number | null;
+  mission_phases?: string[];
+  honoraires_ht?: number;
+  honoraires_pct?: number;
+  payment_schedule?: SchedulePdfRow[];
 };
 
 export type PdfFacture = {
