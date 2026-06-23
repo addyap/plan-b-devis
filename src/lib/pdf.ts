@@ -100,7 +100,7 @@ type CommonInput = {
   kind: DocKind;
   number: string;
   issueDate: string;
-  rightDateLabel: string;   // e.g. "Valable jusqu'au" or "Échéance"
+  rightDateLabel: string;
   rightDate: string;
   language: Lang;
   projectDescription: string | null;
@@ -112,6 +112,16 @@ type CommonInput = {
   depositAmount: number | null;
   notes: string | null;
   lines: PdfLine[];
+  // MOE extras (devis only)
+  projectName?: string | null;
+  siteAddress?: string | null;
+  operationType?: string | null;
+  surfaceM2?: number | null;
+  worksBudgetHt?: number | null;
+  missionPhases?: string[];
+  honorairesHt?: number;
+  honorairesPct?: number;
+  paymentSchedule?: SchedulePdfRow[];
 };
 
 async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClient): Promise<jsPDF> {
