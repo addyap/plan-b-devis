@@ -219,7 +219,7 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
       fmtMoney(Number(l.line_total_ht), lang),
 
     ]),
-    headStyles: { fillColor: NAVY, textColor: 255, fontStyle: "bold", fontSize: 9 },
+    headStyles: { fillColor: BRICK, textColor: 255, fontStyle: "bold", fontSize: 9 },
     bodyStyles: { fontSize: 9, textColor: 30 },
     columnStyles: {
       0: { cellWidth: "auto" },
