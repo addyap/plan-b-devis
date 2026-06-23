@@ -62,8 +62,6 @@ const fmtD = (d: string | null | undefined, lang: Lang) =>
   d ? new Intl.DateTimeFormat(locale(lang), { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(d)) : "—";
 
 
-async function fetchLogoDataUrl(logoUrl: string | null): Promise<{ data: string; w: number; h: number; fmt: "PNG" | "JPEG" } | null> {
-  // Fall back to bundled Plan B Concept brand logo when profile has no custom logo
 async function dataUrlToDims(dataUrl: string): Promise<{ w: number; h: number }> {
   if (typeof Image === "undefined") return { w: 1, h: 1 };
   return new Promise((resolve) => {
