@@ -30,12 +30,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="border-b border-brand-maroon-dark bg-brand-maroon text-white shadow-sm">
         <div className="mx-auto max-w-7xl px-6 h-20 flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center gap-3">
-            <div className="size-14 rounded-md bg-white p-1 shadow-sm flex items-center justify-center overflow-hidden">
+            <div className="size-14 rounded-md overflow-hidden shadow-sm">
               <img src={logoAsset.url} alt="Plan B Côte d'Azur" className="size-full object-contain" />
-            </div>
-            <div className="leading-tight">
-              <div className="text-sm font-semibold tracking-wide text-white">PLAN B</div>
-              <div className="text-[10px] text-brand-gold tracking-[0.2em] uppercase">Côte d'Azur</div>
             </div>
           </Link>
           <div className="flex items-center gap-2">

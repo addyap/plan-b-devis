@@ -122,15 +122,13 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
   // Gold accent rule beneath the band
   doc.setFillColor(...GOLD).rect(0, bandH, pageW, 1.2, "F");
 
-  // Logo on the band (white logo container for legibility)
+  // Logo on the band
   const logo = await fetchLogoDataUrl(profile.logo_url);
   const logoH = 20;
   let logoW = 0;
   if (logo) {
     logoW = Math.min(34, (logo.w / logo.h) * logoH);
-    // white rounded rect behind logo
-    doc.setFillColor(255, 255, 255).roundedRect(M, (bandH - (logoH + 4)) / 2, logoW + 4, logoH + 4, 1.5, 1.5, "F");
-    try { doc.addImage(logo.data, logo.fmt, M + 2, (bandH - logoH) / 2, logoW, logoH, undefined, "FAST"); } catch { /* ignore */ }
+    try { doc.addImage(logo.data, logo.fmt, M, (bandH - logoH) / 2, logoW, logoH, undefined, "FAST"); } catch { /* ignore */ }
   }
   const nameX = M + (logo ? logoW + 10 : 0);
   doc.setFont("helvetica", "bold").setFontSize(15).setTextColor(255, 255, 255);
