@@ -948,9 +948,42 @@ function DevisEditor() {
                           <Textarea rows={2} value={l.details} onChange={(e) => updateLine(i, { details: e.target.value })} placeholder={t("devis.line_details_ph")} />
                         </div>
 
+                        {l.line_type === "moe" && (
+                          <>
+                            <div className="col-span-12 sm:col-span-4">
+                              <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.moe_mission")}</Label>
+                              <Select value={l.mission_code ?? "__none"} onValueChange={(v) => updateLine(i, { mission_code: v === "__none" ? null : v })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__none">{t("devis.moe_mission_none")}</SelectItem>
+                                  {MISSION_CODES.map(code => (
+                                    <SelectItem key={code} value={code}>
+                                      {code} — {MISSION_LABELS[code][devis.language]}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="col-span-12 sm:col-span-4">
+                              <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.moe_pricing_mode")}</Label>
+                              <div className="inline-flex rounded-md border bg-background overflow-hidden text-xs h-9">
+                                <button type="button" className={`px-3 ${l.pricing_mode === "amount" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`} onClick={() => updateLine(i, { pricing_mode: "amount" })}>€ {t("devis.moe_pricing_amount")}</button>
+                                <button type="button" className={`px-3 ${l.pricing_mode === "percent" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`} onClick={() => updateLine(i, { pricing_mode: "percent" })}>% {t("devis.moe_pricing_percent")}</button>
+                              </div>
+                            </div>
+                            {l.pricing_mode === "percent" && (
+                              <div className="col-span-12 sm:col-span-4">
+                                <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.moe_percent_of_budget")}</Label>
+                                <Input type="number" step="0.01" min={0} className="text-right tabular-nums" value={l.percent_of_budget} onChange={(e) => updateLine(i, { percent_of_budget: Number(e.target.value) })} />
+                                {!budget && <p className="text-[10px] text-amber-600 mt-1">{t("devis.moe_no_budget")}</p>}
+                              </div>
+                            )}
+                          </>
+                        )}
+
                         <div className="col-span-6 sm:col-span-2">
                           <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.line_qty")}</Label>
-                          <Input type="number" step="0.01" min={0} className="text-right tabular-nums" value={l.quantity} onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })} />
+                          <Input type="number" step="0.01" min={0} className="text-right tabular-nums" value={l.quantity} onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })} disabled={l.line_type === "moe" && l.pricing_mode === "percent"} />
                         </div>
                         <div className="col-span-6 sm:col-span-2">
                           <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.line_unit")}</Label>
@@ -966,7 +999,7 @@ function DevisEditor() {
                         </div>
                         <div className="col-span-6 sm:col-span-2">
                           <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.line_pu")}</Label>
-                          <Input type="number" step="0.01" className="text-right tabular-nums" value={l.unit_price_ht} onChange={(e) => updateLine(i, { unit_price_ht: Number(e.target.value) })} />
+                          <Input type="number" step="0.01" className="text-right tabular-nums" value={l.line_type === "moe" && l.pricing_mode === "percent" ? +(budget * (Number(l.percent_of_budget || 0) / 100)).toFixed(2) : l.unit_price_ht} onChange={(e) => updateLine(i, { unit_price_ht: Number(e.target.value) })} disabled={l.line_type === "moe" && l.pricing_mode === "percent"} />
                         </div>
                         <div className="col-span-6 sm:col-span-3">
                           <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.line_discount")}</Label>
