@@ -28,10 +28,12 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-brand-burgundy: var(--brand-burgundy);
-  --color-brand-brick: var(--brand-brick);
+  --color-brand-maroon: var(--brand-maroon);
+  --color-brand-maroon-dark: var(--brand-maroon-dark);
   --color-brand-gold: var(--brand-gold);
-  --color-brand-cream: var(--brand-cream);
+  --color-brand-gold-hover: var(--brand-gold-hover);
+  --color-brand-brick: var(--brand-brick);
+  --color-brand-brick-hover: var(--brand-brick-hover);
   --color-ring-offset-background: var(--background);
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Cormorant Garamond", ui-serif, Georgia, serif;
@@ -40,57 +42,65 @@
 :root {
   --radius: 0.5rem;
 
-  /* Plan B Concept brand palette (derived from logo) */
-  --brand-burgundy: oklch(0.21 0.07 25);   /* #2a0a0a deep burgundy */
-  --brand-brick: oklch(0.48 0.13 33);      /* #8b3a2a brick red */
-  --brand-gold: oklch(0.87 0.15 92);       /* #f5d547 warm gold */
-  --brand-cream: oklch(0.97 0.02 85);      /* warm cream */
+  /* Plan B Côte d'Azur — exact palette */
+  --brand-maroon: #2E1011;          /* deep espresso maroon */
+  --brand-maroon-dark: #1d0a0b;     /* hover/darker */
+  --brand-gold: #F2CB3C;            /* primary accent */
+  --brand-gold-hover: #d9b22e;      /* hover */
+  --brand-brick: #9B2E2A;           /* secondary accent */
+  --brand-brick-hover: #7d2421;     /* hover */
 
-  --background: oklch(0.985 0.008 80);     /* warm off-white */
-  --foreground: oklch(0.20 0.05 25);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.20 0.05 25);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.20 0.05 25);
+  --background: #FFFFFF;
+  --foreground: #1a0808;            /* near-black maroon body text */
 
-  --primary: var(--brand-burgundy);
-  --primary-foreground: oklch(0.97 0.02 85);
+  --card: #FFFFFF;
+  --card-foreground: #1a0808;
+  --popover: #FFFFFF;
+  --popover-foreground: #1a0808;
 
-  --secondary: oklch(0.95 0.02 60);
-  --secondary-foreground: var(--brand-burgundy);
+  /* Primary = gold accent. Buttons render gold with dark maroon text (AA contrast). */
+  --primary: #F2CB3C;
+  --primary-foreground: #2E1011;
 
-  --muted: oklch(0.95 0.015 70);
-  --muted-foreground: oklch(0.45 0.03 30);
+  /* Secondary = brick red with white text */
+  --secondary: #9B2E2A;
+  --secondary-foreground: #FFFFFF;
 
-  --accent: var(--brand-gold);
-  --accent-foreground: var(--brand-burgundy);
+  --muted: #f5efea;
+  --muted-foreground: #5a3a3a;
 
-  --destructive: oklch(0.55 0.22 25);
-  --destructive-foreground: oklch(0.99 0.003 247);
+  /* Accent kept as gold for highlights / active chips */
+  --accent: #F2CB3C;
+  --accent-foreground: #2E1011;
 
-  --border: oklch(0.90 0.015 60);
-  --input: oklch(0.92 0.015 60);
-  --ring: var(--brand-brick);
+  --destructive: #b42318;
+  --destructive-foreground: #FFFFFF;
+
+  --border: #ead9d3;
+  --input: #ead9d3;
+  --ring: #9B2E2A;
 }
 
 .dark {
-  --background: oklch(0.16 0.04 25);
-  --foreground: oklch(0.97 0.02 85);
-  --card: oklch(0.21 0.05 25);
-  --card-foreground: oklch(0.97 0.02 85);
-  --popover: oklch(0.21 0.05 25);
-  --popover-foreground: oklch(0.97 0.02 85);
-  --primary: var(--brand-gold);
-  --primary-foreground: var(--brand-burgundy);
-  --secondary: oklch(0.27 0.05 25);
-  --secondary-foreground: oklch(0.97 0.02 85);
-  --muted: oklch(0.27 0.05 25);
-  --muted-foreground: oklch(0.72 0.03 60);
-  --accent: var(--brand-brick);
-  --accent-foreground: oklch(0.97 0.02 85);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: var(--brand-gold);
+  --background: #2E1011;            /* maroon base */
+  --foreground: #fbeedd;
+  --card: #3a1718;
+  --card-foreground: #fbeedd;
+  --popover: #3a1718;
+  --popover-foreground: #fbeedd;
+  --primary: #F2CB3C;
+  --primary-foreground: #2E1011;
+  --secondary: #9B2E2A;
+  --secondary-foreground: #FFFFFF;
+  --muted: #401b1c;
+  --muted-foreground: #d4bdb2;
+  --accent: #F2CB3C;
+  --accent-foreground: #2E1011;
+  --destructive: #ef4444;
+  --destructive-foreground: #FFFFFF;
+  --border: rgba(255, 255, 255, 0.12);
+  --input: rgba(255, 255, 255, 0.15);
+  --ring: #F2CB3C;
 }
 
 @layer base {
@@ -101,5 +111,8 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
-  h1, h2, h3, h4 { letter-spacing: -0.01em; }
+  h1, h2, h3, h4 { letter-spacing: -0.01em; color: var(--brand-maroon); }
+  .dark h1, .dark h2, .dark h3, .dark h4 { color: var(--foreground); }
+  a { color: var(--brand-brick); }
+  a:hover { color: var(--brand-brick-hover); }
 }
