@@ -244,11 +244,20 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
   };
   row(L.subtotal[lang], fmtMoney(input.subtotalHt, lang));
   if (tva) row(`${L.vat[lang]} (${profile.vat_rate} %)`, fmtMoney(input.vatAmount, lang));
-  doc.setDrawColor(...NAVY).setLineWidth(0.4).line(totalsX, y, valX, y); y += 3;
-  row(L.totalTtc[lang], fmtMoney(input.totalTtc, lang), true);
+  // Gold accent rule before the total
+  doc.setDrawColor(...GOLD).setLineWidth(0.8).line(totalsX, y, valX, y); y += 3;
+  // Total TTC row — brick red filled band with white text
+  {
+    const rowH = 9;
+    doc.setFillColor(...BRICK).rect(totalsX - 2, y - 1, valX - totalsX + 2, rowH, "F");
+    doc.setFont("helvetica", "bold").setFontSize(11).setTextColor(255, 255, 255);
+    doc.text(L.totalTtc[lang], totalsX, y + 5);
+    doc.text(fmtMoney(input.totalTtc, lang), valX - 1, y + 5, { align: "right" });
+    y += rowH + 1;
+  }
   if (!tva) {
     doc.setFont("helvetica", "italic").setFontSize(8).setTextColor(80);
-    doc.text(L.vatNa[lang], valX, y, { align: "right" });
+    doc.text(L.vatNa[lang], valX, y + 2, { align: "right" });
     y += 5;
   }
   if (input.depositAmount && balance !== null) {
