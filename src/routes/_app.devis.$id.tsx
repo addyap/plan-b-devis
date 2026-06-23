@@ -1283,6 +1283,27 @@ function DevisEditor() {
         </DialogContent>
       </Dialog>
 
+      {/* Mobile sticky totals bar — visible while scrolling line items */}
+      <div
+        className="lg:hidden fixed inset-x-0 z-30 bg-card border-t shadow-[0_-4px_12px_rgba(0,0,0,0.08)]"
+        style={{ bottom: "calc(env(safe-area-inset-bottom) + 60px)" }}
+      >
+        <div className="mx-auto max-w-7xl px-4 py-2 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("devis.summary_total_ttc")}</div>
+            <div className="text-lg font-bold tabular-nums text-primary leading-tight">{fmtEUR(totals.totalTTC, uiLang)}</div>
+            <div className="text-[10px] text-muted-foreground tabular-nums">
+              {t("devis.summary_net")}: {fmtEUR(totals.netAfterDiscount, uiLang)} · {t("devis.summary_vat_total")}: {fmtEUR(totals.totalVAT, uiLang)}
+              {totals.depositAmount > 0 ? ` · ${t("devis.summary_deposit_due")}: ${fmtEUR(totals.depositAmount, uiLang)}` : ""}
+            </div>
+          </div>
+          <Button size="sm" onClick={() => save()} disabled={saving} className="shrink-0">
+            <Save className="size-4" /> {saving ? "…" : t("devis.save")}
+          </Button>
+        </div>
+      </div>
+
+
       {/* Library */}
       <Dialog open={presetsOpen} onOpenChange={setPresetsOpen}>
         <DialogContent className="max-w-lg">
