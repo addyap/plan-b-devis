@@ -28,6 +28,10 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-brand-burgundy: var(--brand-burgundy);
+  --color-brand-brick: var(--brand-brick);
+  --color-brand-gold: var(--brand-gold);
+  --color-brand-cream: var(--brand-cream);
   --color-ring-offset-background: var(--background);
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Cormorant Garamond", ui-serif, Georgia, serif;
@@ -35,43 +39,58 @@
 
 :root {
   --radius: 0.5rem;
-  /* Navy primary #0f1b3d */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.18 0.04 265);
+
+  /* Plan B Concept brand palette (derived from logo) */
+  --brand-burgundy: oklch(0.21 0.07 25);   /* #2a0a0a deep burgundy */
+  --brand-brick: oklch(0.48 0.13 33);      /* #8b3a2a brick red */
+  --brand-gold: oklch(0.87 0.15 92);       /* #f5d547 warm gold */
+  --brand-cream: oklch(0.97 0.02 85);      /* warm cream */
+
+  --background: oklch(0.985 0.008 80);     /* warm off-white */
+  --foreground: oklch(0.20 0.05 25);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.04 265);
+  --card-foreground: oklch(0.20 0.05 25);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.04 265);
-  --primary: oklch(0.22 0.07 265);
-  --primary-foreground: oklch(0.99 0.003 247);
-  --secondary: oklch(0.97 0.005 250);
-  --secondary-foreground: oklch(0.22 0.07 265);
-  --muted: oklch(0.97 0.005 250);
-  --muted-foreground: oklch(0.5 0.02 260);
-  --accent: oklch(0.95 0.01 260);
-  --accent-foreground: oklch(0.22 0.07 265);
+  --popover-foreground: oklch(0.20 0.05 25);
+
+  --primary: var(--brand-burgundy);
+  --primary-foreground: oklch(0.97 0.02 85);
+
+  --secondary: oklch(0.95 0.02 60);
+  --secondary-foreground: var(--brand-burgundy);
+
+  --muted: oklch(0.95 0.015 70);
+  --muted-foreground: oklch(0.45 0.03 30);
+
+  --accent: var(--brand-gold);
+  --accent-foreground: var(--brand-burgundy);
+
   --destructive: oklch(0.55 0.22 25);
   --destructive-foreground: oklch(0.99 0.003 247);
-  --border: oklch(0.92 0.008 255);
-  --input: oklch(0.92 0.008 255);
-  --ring: oklch(0.22 0.07 265);
+
+  --border: oklch(0.90 0.015 60);
+  --input: oklch(0.92 0.015 60);
+  --ring: var(--brand-brick);
 }
 
 .dark {
-  --background: oklch(0.18 0.04 265);
-  --foreground: oklch(0.99 0.003 247);
-  --card: oklch(0.22 0.05 265);
-  --card-foreground: oklch(0.99 0.003 247);
-  --primary: oklch(0.99 0.003 247);
-  --primary-foreground: oklch(0.22 0.07 265);
+  --background: oklch(0.16 0.04 25);
+  --foreground: oklch(0.97 0.02 85);
+  --card: oklch(0.21 0.05 25);
+  --card-foreground: oklch(0.97 0.02 85);
+  --popover: oklch(0.21 0.05 25);
+  --popover-foreground: oklch(0.97 0.02 85);
+  --primary: var(--brand-gold);
+  --primary-foreground: var(--brand-burgundy);
+  --secondary: oklch(0.27 0.05 25);
+  --secondary-foreground: oklch(0.97 0.02 85);
+  --muted: oklch(0.27 0.05 25);
+  --muted-foreground: oklch(0.72 0.03 60);
+  --accent: var(--brand-brick);
+  --accent-foreground: oklch(0.97 0.02 85);
   --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 15%);
-  --muted: oklch(0.27 0.04 260);
-  --muted-foreground: oklch(0.7 0.03 257);
-  --secondary: oklch(0.27 0.04 260);
-  --secondary-foreground: oklch(0.99 0.003 247);
-  --accent: oklch(0.27 0.04 260);
-  --accent-foreground: oklch(0.99 0.003 247);
+  --ring: var(--brand-gold);
 }
 
 @layer base {

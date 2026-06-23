@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { supabase } from "@/integrations/supabase/client";
 import { L, type Lang } from "@/lib/i18n";
+import brandLogo from "@/assets/plan-b-logo.png.asset.json";
 
 export type PdfProfile = {
   id?: string;
@@ -36,7 +37,8 @@ export type PdfFacture = {
   subtotal_ht: number; vat_amount: number; total_ttc: number; deposit_amount: number | null; notes: string | null;
 };
 
-const NAVY: [number, number, number] = [15, 27, 61];
+const NAVY: [number, number, number] = [42, 10, 10]; // brand burgundy
+const GOLD: [number, number, number] = [245, 213, 71];
 const locale = (l: Lang) => (l === "fr" ? "fr-FR" : "en-GB");
 const fmtMoney = (n: number, lang: Lang) =>
   new Intl.NumberFormat(locale(lang), { style: "currency", currency: "EUR" }).format(Number(n || 0));
@@ -45,7 +47,8 @@ const fmtD = (d: string | null | undefined, lang: Lang) =>
 
 
 async function fetchLogoDataUrl(logoUrl: string | null): Promise<{ data: string; w: number; h: number; fmt: "PNG" | "JPEG" } | null> {
-  if (!logoUrl) return null;
+  // Fall back to bundled Plan B Concept brand logo when profile has no custom logo
+  if (!logoUrl) logoUrl = brandLogo.url;
   try {
     // If it's a Supabase storage URL, try to grab a signed url for the path (bucket is private)
     let url = logoUrl;
