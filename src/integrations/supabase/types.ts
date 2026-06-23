@@ -118,6 +118,7 @@ export type Database = {
           address_line1: string | null
           address_line2: string | null
           city: string | null
+          client_type: string
           contact_name: string | null
           country: string | null
           created_at: string
@@ -126,11 +127,14 @@ export type Database = {
           name: string
           phone: string | null
           postcode: string | null
+          siret: string | null
+          vat_number: string | null
         }
         Insert: {
           address_line1?: string | null
           address_line2?: string | null
           city?: string | null
+          client_type?: string
           contact_name?: string | null
           country?: string | null
           created_at?: string
@@ -139,11 +143,14 @@ export type Database = {
           name: string
           phone?: string | null
           postcode?: string | null
+          siret?: string | null
+          vat_number?: string | null
         }
         Update: {
           address_line1?: string | null
           address_line2?: string | null
           city?: string | null
+          client_type?: string
           contact_name?: string | null
           country?: string | null
           created_at?: string
@@ -152,24 +159,36 @@ export type Database = {
           name?: string
           phone?: string | null
           postcode?: string | null
+          siret?: string | null
+          vat_number?: string | null
         }
         Relationships: []
       }
       devis: {
         Row: {
           client_id: string | null
+          conditions_notes: string | null
           created_at: string
           deposit_amount: number | null
+          deposit_type: string
+          deposit_value: number
           devis_number: string
+          global_discount_type: string
+          global_discount_value: number
           id: string
           issue_date: string
           language: Database["public"]["Enums"]["devis_language"]
           last_email_error: string | null
+          legal_mentions: string[]
           notes: string | null
+          payment_methods: string[]
+          payment_terms_preset: string | null
           project_description: string | null
           project_duration: string | null
           project_start: string | null
           sent_at: string | null
+          signature_client_name: string | null
+          signature_date: string | null
           status: Database["public"]["Enums"]["devis_status"]
           subtotal_ht: number
           total_ttc: number
@@ -179,18 +198,28 @@ export type Database = {
         }
         Insert: {
           client_id?: string | null
+          conditions_notes?: string | null
           created_at?: string
           deposit_amount?: number | null
+          deposit_type?: string
+          deposit_value?: number
           devis_number: string
+          global_discount_type?: string
+          global_discount_value?: number
           id?: string
           issue_date?: string
           language?: Database["public"]["Enums"]["devis_language"]
           last_email_error?: string | null
+          legal_mentions?: string[]
           notes?: string | null
+          payment_methods?: string[]
+          payment_terms_preset?: string | null
           project_description?: string | null
           project_duration?: string | null
           project_start?: string | null
           sent_at?: string | null
+          signature_client_name?: string | null
+          signature_date?: string | null
           status?: Database["public"]["Enums"]["devis_status"]
           subtotal_ht?: number
           total_ttc?: number
@@ -200,18 +229,28 @@ export type Database = {
         }
         Update: {
           client_id?: string | null
+          conditions_notes?: string | null
           created_at?: string
           deposit_amount?: number | null
+          deposit_type?: string
+          deposit_value?: number
           devis_number?: string
+          global_discount_type?: string
+          global_discount_value?: number
           id?: string
           issue_date?: string
           language?: Database["public"]["Enums"]["devis_language"]
           last_email_error?: string | null
+          legal_mentions?: string[]
           notes?: string | null
+          payment_methods?: string[]
+          payment_terms_preset?: string | null
           project_description?: string | null
           project_duration?: string | null
           project_start?: string | null
           sent_at?: string | null
+          signature_client_name?: string | null
+          signature_date?: string | null
           status?: Database["public"]["Enums"]["devis_status"]
           subtotal_ht?: number
           total_ttc?: number
@@ -232,33 +271,48 @@ export type Database = {
       devis_lines: {
         Row: {
           description: string
+          details: string | null
           devis_id: string
+          discount_type: string
+          discount_value: number
           id: string
           line_total_ht: number
+          line_type: string
           quantity: number
           sort_order: number
           unit: string | null
           unit_price_ht: number
+          vat_rate: number
         }
         Insert: {
           description: string
+          details?: string | null
           devis_id: string
+          discount_type?: string
+          discount_value?: number
           id?: string
           line_total_ht?: number
+          line_type?: string
           quantity?: number
           sort_order?: number
           unit?: string | null
           unit_price_ht?: number
+          vat_rate?: number
         }
         Update: {
           description?: string
+          details?: string | null
           devis_id?: string
+          discount_type?: string
+          discount_value?: number
           id?: string
           line_total_ht?: number
+          line_type?: string
           quantity?: number
           sort_order?: number
           unit?: string | null
           unit_price_ht?: number
+          vat_rate?: number
         }
         Relationships: [
           {
