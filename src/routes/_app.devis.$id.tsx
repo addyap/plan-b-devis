@@ -306,12 +306,16 @@ function DevisEditor() {
 
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
 
-  const totals = useMemo(
-    () => devis
-      ? computeTotals(lines, devis.global_discount_type, devis.global_discount_value, devis.deposit_type, devis.deposit_value)
-      : null,
-    [lines, devis?.global_discount_type, devis?.global_discount_value, devis?.deposit_type, devis?.deposit_value]
-  );
+  const totals = useMemo(() => {
+    if (!devis) return null;
+    const b = Number(devis.works_budget_ht || 0);
+    const view = lines.map(l =>
+      l.pricing_mode === "percent"
+        ? { ...l, unit_price_ht: +(b * (Number(l.percent_of_budget || 0) / 100)).toFixed(2), quantity: 1 }
+        : l,
+    );
+    return computeTotals(view, devis.global_discount_type, devis.global_discount_value, devis.deposit_type, devis.deposit_value);
+  }, [lines, devis?.global_discount_type, devis?.global_discount_value, devis?.deposit_type, devis?.deposit_value, devis?.works_budget_ht]);
 
   if (!devis || !profile || !totals) return <div className="text-muted-foreground">{t("common.loading")}</div>;
 
