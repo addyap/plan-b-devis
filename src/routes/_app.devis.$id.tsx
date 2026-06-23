@@ -817,6 +817,66 @@ function DevisEditor() {
             )}
           </Card>
 
+          {/* MOE PROJECT INFO */}
+          <Card className="p-5 space-y-4">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t("devis.section_moe")}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label={t("devis.moe_project_name")}>
+                <Input value={devis.project_name ?? ""} onChange={(e) => update({ project_name: e.target.value })} />
+              </Field>
+              <Field label={t("devis.moe_operation_type")}>
+                <Select value={devis.operation_type ?? ""} onValueChange={(v) => update({ operation_type: v })}>
+                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent>
+                    {OPERATION_KEYS.map(k => <SelectItem key={k} value={k}>{t(`devis.moe_op_${k}`)}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+            <Field label={t("devis.moe_site_address")} help={t("devis.moe_site_address_help")}>
+              <div className="space-y-2">
+                <Input placeholder="Adresse" value={devis.site_address_line1 ?? ""} onChange={(e) => update({ site_address_line1: e.target.value })} />
+                <Input placeholder="Complément" value={devis.site_address_line2 ?? ""} onChange={(e) => update({ site_address_line2: e.target.value })} />
+                <div className="grid grid-cols-3 gap-2">
+                  <Input placeholder="CP" value={devis.site_postcode ?? ""} onChange={(e) => update({ site_postcode: e.target.value })} />
+                  <Input placeholder="Ville" value={devis.site_city ?? ""} onChange={(e) => update({ site_city: e.target.value })} />
+                  <Input placeholder="Pays" value={devis.site_country ?? ""} onChange={(e) => update({ site_country: e.target.value })} />
+                </div>
+              </div>
+            </Field>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label={t("devis.moe_surface")}>
+                <Input type="number" step="0.01" min={0} className="text-right tabular-nums" value={devis.surface_m2 ?? ""} onChange={(e) => update({ surface_m2: e.target.value === "" ? null : Number(e.target.value) })} />
+              </Field>
+              <Field label={t("devis.moe_works_budget")} help={t("devis.moe_works_budget_help")}>
+                <Input type="number" step="0.01" min={0} className="text-right tabular-nums" value={devis.works_budget_ht ?? ""} onChange={(e) => update({ works_budget_ht: e.target.value === "" ? null : Number(e.target.value) })} />
+              </Field>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">{t("devis.moe_phases")}</Label>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {MISSION_CODES.map(code => {
+                  const active = devis.mission_phases.includes(code);
+                  return (
+                    <button
+                      key={code}
+                      type="button"
+                      onClick={() => update({
+                        mission_phases: active
+                          ? devis.mission_phases.filter(x => x !== code)
+                          : [...devis.mission_phases, code],
+                      })}
+                      className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                      title={MISSION_LABELS[code][devis.language]}
+                    >
+                      {code}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </Card>
+
           {/* PROJECT */}
           <Card className="p-5 space-y-4">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t("devis.section_project")}</h2>
