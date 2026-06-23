@@ -35,8 +35,9 @@
   --color-brand-brick: var(--brand-brick);
   --color-brand-brick-hover: var(--brand-brick-hover);
   --color-ring-offset-background: var(--background);
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Cormorant Garamond", ui-serif, Georgia, serif;
+  --font-display: "Cormorant Garamond", ui-serif, Georgia, serif;
 }
 
 :root {
@@ -111,7 +112,12 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
-  h1, h2, h3, h4 { letter-spacing: -0.01em; color: var(--brand-maroon); }
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+    color: var(--brand-maroon);
+    font-weight: 600;
+  }
   .dark h1, .dark h2, .dark h3, .dark h4 { color: var(--foreground); }
   a { color: var(--brand-brick); }
   a:hover { color: var(--brand-brick-hover); }
