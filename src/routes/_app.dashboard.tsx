@@ -154,6 +154,8 @@ function Dashboard() {
       toast.error(`PDF: ${(e as Error).message}`, { id: t0 });
     }
   };
+
+  return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
