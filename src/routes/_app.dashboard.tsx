@@ -196,7 +196,8 @@ function Dashboard() {
         </Select>
       </div>
 
-      <div className="border rounded-xl overflow-hidden bg-card">
+      {/* Desktop table */}
+      <div className="hidden md:block border rounded-xl overflow-hidden bg-card">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
@@ -241,6 +242,43 @@ function Dashboard() {
           </tbody>
         </table>
       </div>
+
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-3">
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground border rounded-xl bg-card">{t("dashboard.empty")}</div>
+        )}
+        {filtered.map((d) => (
+          <div
+            key={d.id}
+            className="border rounded-xl bg-card p-4 active:bg-muted/50 cursor-pointer"
+            onClick={() => navigate({ to: "/devis/$id", params: { id: d.id } })}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="font-mono text-xs text-muted-foreground">{d.devis_number}</div>
+                <div className="font-medium truncate">{d.client?.name ?? "—"}</div>
+              </div>
+              <Badge className={STATUS_STYLES[d.status]} variant="secondary">{t(`status.${d.status}`)}</Badge>
+            </div>
+            <div className="mt-3 flex items-end justify-between gap-3">
+              <div className="text-xs text-muted-foreground">
+                <div>{fmtDate(d.issue_date, lang)}</div>
+                <div>→ {fmtDate(d.validity_until, lang)}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-lg font-semibold tabular-nums">{fmtEUR(Number(d.total_ttc), lang)}</div>
+              </div>
+            </div>
+            <div className="mt-3 flex justify-end" onClick={(e) => e.stopPropagation()}>
+              <Button variant="outline" size="sm" onClick={() => downloadRow(d.id)}>
+                <Download className="size-4" /> {t("devis.pdf")}
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+
     </div>
   );
 }
