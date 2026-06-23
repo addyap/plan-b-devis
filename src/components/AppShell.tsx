@@ -44,7 +44,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     to={n.to}
                     className={`px-3 py-1.5 rounded-md text-sm transition-colors ${active ? "bg-brand-gold text-brand-maroon font-semibold" : "text-white/75 hover:text-white hover:bg-white/10"}`}
                   >
-                    {t(n.key)}
+                    <span suppressHydrationWarning>{t(n.key)}</span>
                   </Link>
                 );
               })}
