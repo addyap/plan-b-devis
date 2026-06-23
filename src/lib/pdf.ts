@@ -37,8 +37,11 @@ export type PdfFacture = {
   subtotal_ht: number; vat_amount: number; total_ttc: number; deposit_amount: number | null; notes: string | null;
 };
 
-const NAVY: [number, number, number] = [42, 10, 10]; // brand burgundy
-const GOLD: [number, number, number] = [245, 213, 71];
+const MAROON: [number, number, number] = [46, 16, 17];    // #2E1011
+const BRICK: [number, number, number] = [155, 46, 42];    // #9B2E2A
+const GOLD: [number, number, number] = [242, 203, 60];    // #F2CB3C
+// Back-compat alias used throughout the file
+const NAVY = MAROON;
 const locale = (l: Lang) => (l === "fr" ? "fr-FR" : "en-GB");
 const fmtMoney = (n: number, lang: Lang) =>
   new Intl.NumberFormat(locale(lang), { style: "currency", currency: "EUR" }).format(Number(n || 0));
@@ -111,32 +114,38 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const M = 14;
-  let y = M;
+  let y = 0;
 
-  // Header: logo + name (left) / title + meta (right)
+  // Maroon header band across the top
+  const bandH = 30;
+  doc.setFillColor(...MAROON).rect(0, 0, pageW, bandH, "F");
+  // Gold accent rule beneath the band
+  doc.setFillColor(...GOLD).rect(0, bandH, pageW, 1.2, "F");
+
+  // Logo on the band (white logo container for legibility)
   const logo = await fetchLogoDataUrl(profile.logo_url);
+  const logoH = 20;
+  let logoW = 0;
   if (logo) {
-    const targetH = 16;
-    const targetW = Math.min(28, (logo.w / logo.h) * targetH);
-    try { doc.addImage(logo.data, logo.fmt, M, y, targetW, targetH); } catch { /* ignore */ }
+    logoW = Math.min(34, (logo.w / logo.h) * logoH);
+    // white rounded rect behind logo
+    doc.setFillColor(255, 255, 255).roundedRect(M, (bandH - (logoH + 4)) / 2, logoW + 4, logoH + 4, 1.5, 1.5, "F");
+    try { doc.addImage(logo.data, logo.fmt, M + 2, (bandH - logoH) / 2, logoW, logoH, undefined, "FAST"); } catch { /* ignore */ }
   }
-  const nameX = M + (logo ? 32 : 0);
-  doc.setFont("helvetica", "bold").setFontSize(16).setTextColor(...NAVY);
-  doc.text(tradingName, nameX, y + 7);
-  doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(90);
-  doc.text("Ma\u00eetrise d\u2019\u0153uvre \u00b7 Project Management", nameX, y + 12);
+  const nameX = M + (logo ? logoW + 10 : 0);
+  doc.setFont("helvetica", "bold").setFontSize(15).setTextColor(255, 255, 255);
+  doc.text(tradingName, nameX, 13);
+  doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(...GOLD);
+  doc.text("C\u00F4te d\u2019Azur \u00B7 Ma\u00eetrise d\u2019\u0153uvre \u00b7 Project Management", nameX, 18);
 
-  doc.setFont("helvetica", "bold").setFontSize(16).setTextColor(...NAVY);
-  const titleLine = `${titleWord} N\u00B0 ${input.number}`;
-  doc.text(titleLine, pageW - M, y + 6, { align: "right" });
-  doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(70);
-  doc.text(`${L.date[lang]} : ${fmtD(input.issueDate, lang)}`, pageW - M, y + 12, { align: "right" });
-  doc.text(`${input.rightDateLabel} : ${fmtD(input.rightDate, lang)}`, pageW - M, y + 17, { align: "right" });
+  // Title + meta on right side of band
+  doc.setFont("helvetica", "bold").setFontSize(18).setTextColor(...GOLD);
+  doc.text(`${titleWord} N\u00B0 ${input.number}`, pageW - M, 14, { align: "right" });
+  doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(255, 255, 255);
+  doc.text(`${L.date[lang]} : ${fmtD(input.issueDate, lang)}`, pageW - M, 20, { align: "right" });
+  doc.text(`${input.rightDateLabel} : ${fmtD(input.rightDate, lang)}`, pageW - M, 25, { align: "right" });
 
-
-  y += 22;
-  doc.setDrawColor(...NAVY).setLineWidth(0.6).line(M, y, pageW - M, y);
-  y += 6;
+  y = bandH + 8;
 
   // Two-column: Issuer / Client
   const colW = (pageW - M * 2 - 6) / 2;
@@ -210,7 +219,7 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
       fmtMoney(Number(l.line_total_ht), lang),
 
     ]),
-    headStyles: { fillColor: NAVY, textColor: 255, fontStyle: "bold", fontSize: 9 },
+    headStyles: { fillColor: BRICK, textColor: 255, fontStyle: "bold", fontSize: 9 },
     bodyStyles: { fontSize: 9, textColor: 30 },
     columnStyles: {
       0: { cellWidth: "auto" },
@@ -235,11 +244,20 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
   };
   row(L.subtotal[lang], fmtMoney(input.subtotalHt, lang));
   if (tva) row(`${L.vat[lang]} (${profile.vat_rate} %)`, fmtMoney(input.vatAmount, lang));
-  doc.setDrawColor(...NAVY).setLineWidth(0.4).line(totalsX, y, valX, y); y += 3;
-  row(L.totalTtc[lang], fmtMoney(input.totalTtc, lang), true);
+  // Gold accent rule before the total
+  doc.setDrawColor(...GOLD).setLineWidth(0.8).line(totalsX, y, valX, y); y += 3;
+  // Total TTC row — brick red filled band with white text
+  {
+    const rowH = 9;
+    doc.setFillColor(...BRICK).rect(totalsX - 2, y - 1, valX - totalsX + 2, rowH, "F");
+    doc.setFont("helvetica", "bold").setFontSize(11).setTextColor(255, 255, 255);
+    doc.text(L.totalTtc[lang], totalsX, y + 5);
+    doc.text(fmtMoney(input.totalTtc, lang), valX - 1, y + 5, { align: "right" });
+    y += rowH + 1;
+  }
   if (!tva) {
     doc.setFont("helvetica", "italic").setFontSize(8).setTextColor(80);
-    doc.text(L.vatNa[lang], valX, y, { align: "right" });
+    doc.text(L.vatNa[lang], valX, y + 2, { align: "right" });
     y += 5;
   }
   if (input.depositAmount && balance !== null) {
