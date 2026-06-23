@@ -37,8 +37,11 @@ export type PdfFacture = {
   subtotal_ht: number; vat_amount: number; total_ttc: number; deposit_amount: number | null; notes: string | null;
 };
 
-const NAVY: [number, number, number] = [42, 10, 10]; // brand burgundy
-const GOLD: [number, number, number] = [245, 213, 71];
+const MAROON: [number, number, number] = [46, 16, 17];    // #2E1011
+const BRICK: [number, number, number] = [155, 46, 42];    // #9B2E2A
+const GOLD: [number, number, number] = [242, 203, 60];    // #F2CB3C
+// Back-compat alias used throughout the file
+const NAVY = MAROON;
 const locale = (l: Lang) => (l === "fr" ? "fr-FR" : "en-GB");
 const fmtMoney = (n: number, lang: Lang) =>
   new Intl.NumberFormat(locale(lang), { style: "currency", currency: "EUR" }).format(Number(n || 0));
