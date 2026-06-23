@@ -225,6 +225,27 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
     y = py + 4;
   }
 
+  // MOE project block (devis)
+  if (input.kind === "devis" && (input.projectName || input.siteAddress || input.operationType || input.surfaceM2 || input.worksBudgetHt || (input.missionPhases && input.missionPhases.length))) {
+    const rows: [string, string][] = [];
+    if (input.projectName) rows.push([L.projectName[lang], input.projectName]);
+    if (input.siteAddress) rows.push([L.siteAddress[lang], input.siteAddress]);
+    if (input.operationType) rows.push([L.operationType[lang], input.operationType]);
+    if (input.surfaceM2) rows.push([L.surface[lang], `${input.surfaceM2} m²`]);
+    if (input.worksBudgetHt) rows.push([L.worksBudget[lang], fmtMoney(Number(input.worksBudgetHt), lang)]);
+    if (input.missionPhases && input.missionPhases.length) rows.push([L.missionPhases[lang], input.missionPhases.join(" · ")]);
+    const boxH = 6 + rows.length * 4.6 + 3;
+    doc.setFillColor(247, 248, 250).rect(M, y, pageW - M * 2, boxH, "F");
+    doc.setDrawColor(...GOLD).setLineWidth(1.2).line(M, y, M, y + boxH);
+    rows.forEach((r, i) => {
+      doc.setFont("helvetica", "bold").setFontSize(8).setTextColor(...NAVY);
+      doc.text(r[0].toUpperCase(), M + 3, y + 6 + i * 4.6);
+      doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(30);
+      doc.text(r[1], M + 55, y + 6 + i * 4.6);
+    });
+    y += boxH + 4;
+  }
+
   // Lines table
   autoTable(doc, {
     startY: y,
