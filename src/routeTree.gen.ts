@@ -9,98 +9,82 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
-import { Route as AuthenticatedFacturesRouteImport } from './routes/_authenticated/factures'
-import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
-import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticated/clients'
-import { Route as AuthenticatedFacturesIdRouteImport } from './routes/_authenticated/factures.$id'
-import { Route as AuthenticatedDevisIdRouteImport } from './routes/_authenticated/devis.$id'
+import { Route as AppSettingsRouteImport } from './routes/_app.settings'
+import { Route as AppFacturesRouteImport } from './routes/_app.factures'
+import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppClientsRouteImport } from './routes/_app.clients'
+import { Route as AppFacturesIdRouteImport } from './routes/_app.factures.$id'
+import { Route as AppDevisIdRouteImport } from './routes/_app.devis.$id'
 
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
-  id: '/_authenticated',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
-  id: '/settings',
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/_app/settings',
   path: '/settings',
-  getParentRoute: () => AuthenticatedRouteRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedFacturesRoute = AuthenticatedFacturesRouteImport.update({
-  id: '/factures',
+const AppFacturesRoute = AppFacturesRouteImport.update({
+  id: '/_app/factures',
   path: '/factures',
-  getParentRoute: () => AuthenticatedRouteRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
-  id: '/dashboard',
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/_app/dashboard',
   path: '/dashboard',
-  getParentRoute: () => AuthenticatedRouteRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedClientsRoute = AuthenticatedClientsRouteImport.update({
-  id: '/clients',
+const AppClientsRoute = AppClientsRouteImport.update({
+  id: '/_app/clients',
   path: '/clients',
-  getParentRoute: () => AuthenticatedRouteRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedFacturesIdRoute = AuthenticatedFacturesIdRouteImport.update({
+const AppFacturesIdRoute = AppFacturesIdRouteImport.update({
   id: '/$id',
   path: '/$id',
-  getParentRoute: () => AuthenticatedFacturesRoute,
+  getParentRoute: () => AppFacturesRoute,
 } as any)
-const AuthenticatedDevisIdRoute = AuthenticatedDevisIdRouteImport.update({
-  id: '/devis/$id',
+const AppDevisIdRoute = AppDevisIdRouteImport.update({
+  id: '/_app/devis/$id',
   path: '/devis/$id',
-  getParentRoute: () => AuthenticatedRouteRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
-  '/clients': typeof AuthenticatedClientsRoute
-  '/dashboard': typeof AuthenticatedDashboardRoute
-  '/factures': typeof AuthenticatedFacturesRouteWithChildren
-  '/settings': typeof AuthenticatedSettingsRoute
-  '/devis/$id': typeof AuthenticatedDevisIdRoute
-  '/factures/$id': typeof AuthenticatedFacturesIdRoute
+  '/clients': typeof AppClientsRoute
+  '/dashboard': typeof AppDashboardRoute
+  '/factures': typeof AppFacturesRouteWithChildren
+  '/settings': typeof AppSettingsRoute
+  '/devis/$id': typeof AppDevisIdRoute
+  '/factures/$id': typeof AppFacturesIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
-  '/clients': typeof AuthenticatedClientsRoute
-  '/dashboard': typeof AuthenticatedDashboardRoute
-  '/factures': typeof AuthenticatedFacturesRouteWithChildren
-  '/settings': typeof AuthenticatedSettingsRoute
-  '/devis/$id': typeof AuthenticatedDevisIdRoute
-  '/factures/$id': typeof AuthenticatedFacturesIdRoute
+  '/clients': typeof AppClientsRoute
+  '/dashboard': typeof AppDashboardRoute
+  '/factures': typeof AppFacturesRouteWithChildren
+  '/settings': typeof AppSettingsRoute
+  '/devis/$id': typeof AppDevisIdRoute
+  '/factures/$id': typeof AppFacturesIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
-  '/auth': typeof AuthRoute
-  '/_authenticated/clients': typeof AuthenticatedClientsRoute
-  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
-  '/_authenticated/factures': typeof AuthenticatedFacturesRouteWithChildren
-  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
-  '/_authenticated/devis/$id': typeof AuthenticatedDevisIdRoute
-  '/_authenticated/factures/$id': typeof AuthenticatedFacturesIdRoute
+  '/_app/clients': typeof AppClientsRoute
+  '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/factures': typeof AppFacturesRouteWithChildren
+  '/_app/settings': typeof AppSettingsRoute
+  '/_app/devis/$id': typeof AppDevisIdRoute
+  '/_app/factures/$id': typeof AppFacturesIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/auth'
     | '/clients'
     | '/dashboard'
     | '/factures'
@@ -110,7 +94,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/auth'
     | '/clients'
     | '/dashboard'
     | '/factures'
@@ -120,38 +103,25 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/_authenticated'
-    | '/auth'
-    | '/_authenticated/clients'
-    | '/_authenticated/dashboard'
-    | '/_authenticated/factures'
-    | '/_authenticated/settings'
-    | '/_authenticated/devis/$id'
-    | '/_authenticated/factures/$id'
+    | '/_app/clients'
+    | '/_app/dashboard'
+    | '/_app/factures'
+    | '/_app/settings'
+    | '/_app/devis/$id'
+    | '/_app/factures/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
-  AuthRoute: typeof AuthRoute
+  AppClientsRoute: typeof AppClientsRoute
+  AppDashboardRoute: typeof AppDashboardRoute
+  AppFacturesRoute: typeof AppFacturesRouteWithChildren
+  AppSettingsRoute: typeof AppSettingsRoute
+  AppDevisIdRoute: typeof AppDevisIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated': {
-      id: '/_authenticated'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -159,87 +129,70 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/settings': {
-      id: '/_authenticated/settings'
+    '/_app/settings': {
+      id: '/_app/settings'
       path: '/settings'
       fullPath: '/settings'
-      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/factures': {
-      id: '/_authenticated/factures'
+    '/_app/factures': {
+      id: '/_app/factures'
       path: '/factures'
       fullPath: '/factures'
-      preLoaderRoute: typeof AuthenticatedFacturesRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      preLoaderRoute: typeof AppFacturesRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/dashboard': {
-      id: '/_authenticated/dashboard'
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
-      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/clients': {
-      id: '/_authenticated/clients'
+    '/_app/clients': {
+      id: '/_app/clients'
       path: '/clients'
       fullPath: '/clients'
-      preLoaderRoute: typeof AuthenticatedClientsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      preLoaderRoute: typeof AppClientsRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/factures/$id': {
-      id: '/_authenticated/factures/$id'
+    '/_app/factures/$id': {
+      id: '/_app/factures/$id'
       path: '/$id'
       fullPath: '/factures/$id'
-      preLoaderRoute: typeof AuthenticatedFacturesIdRouteImport
-      parentRoute: typeof AuthenticatedFacturesRoute
+      preLoaderRoute: typeof AppFacturesIdRouteImport
+      parentRoute: typeof AppFacturesRoute
     }
-    '/_authenticated/devis/$id': {
-      id: '/_authenticated/devis/$id'
+    '/_app/devis/$id': {
+      id: '/_app/devis/$id'
       path: '/devis/$id'
       fullPath: '/devis/$id'
-      preLoaderRoute: typeof AuthenticatedDevisIdRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      preLoaderRoute: typeof AppDevisIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
 
-interface AuthenticatedFacturesRouteChildren {
-  AuthenticatedFacturesIdRoute: typeof AuthenticatedFacturesIdRoute
+interface AppFacturesRouteChildren {
+  AppFacturesIdRoute: typeof AppFacturesIdRoute
 }
 
-const AuthenticatedFacturesRouteChildren: AuthenticatedFacturesRouteChildren = {
-  AuthenticatedFacturesIdRoute: AuthenticatedFacturesIdRoute,
+const AppFacturesRouteChildren: AppFacturesRouteChildren = {
+  AppFacturesIdRoute: AppFacturesIdRoute,
 }
 
-const AuthenticatedFacturesRouteWithChildren =
-  AuthenticatedFacturesRoute._addFileChildren(
-    AuthenticatedFacturesRouteChildren,
-  )
-
-interface AuthenticatedRouteRouteChildren {
-  AuthenticatedClientsRoute: typeof AuthenticatedClientsRoute
-  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
-  AuthenticatedFacturesRoute: typeof AuthenticatedFacturesRouteWithChildren
-  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
-  AuthenticatedDevisIdRoute: typeof AuthenticatedDevisIdRoute
-}
-
-const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedClientsRoute: AuthenticatedClientsRoute,
-  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
-  AuthenticatedFacturesRoute: AuthenticatedFacturesRouteWithChildren,
-  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
-  AuthenticatedDevisIdRoute: AuthenticatedDevisIdRoute,
-}
-
-const AuthenticatedRouteRouteWithChildren =
-  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+const AppFacturesRouteWithChildren = AppFacturesRoute._addFileChildren(
+  AppFacturesRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
-  AuthRoute: AuthRoute,
+  AppClientsRoute: AppClientsRoute,
+  AppDashboardRoute: AppDashboardRoute,
+  AppFacturesRoute: AppFacturesRouteWithChildren,
+  AppSettingsRoute: AppSettingsRoute,
+  AppDevisIdRoute: AppDevisIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

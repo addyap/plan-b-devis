@@ -15,7 +15,7 @@ import { fmtEUR, addDays } from "@/lib/format";
 import { toast } from "sonner";
 import { generateDevisPdf, pdfToBase64, type PdfProfile, type PdfClient, type PdfDevis, type PdfLine } from "@/lib/pdf";
 
-export const Route = createFileRoute("/_authenticated/devis/$id")({
+export const Route = createFileRoute("/_app/devis/$id")({
   component: DevisEditor,
 });
 
