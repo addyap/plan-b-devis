@@ -100,7 +100,7 @@ function ClientsPage() {
         </Dialog>
       </div>
 
-      <div className="border rounded-xl bg-card overflow-hidden">
+      <div className="hidden md:block border rounded-xl bg-card overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
@@ -128,6 +128,30 @@ function ClientsPage() {
           </tbody>
         </table>
       </div>
+
+      <div className="md:hidden space-y-3">
+        {(data ?? []).length === 0 && (
+          <div className="text-center py-12 text-muted-foreground border rounded-xl bg-card">{t("clients.empty")}</div>
+        )}
+        {(data ?? []).map((c) => (
+          <div key={c.id} className="border rounded-xl bg-card p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold truncate">{c.name}</div>
+                {c.contact_name && <div className="text-sm text-muted-foreground truncate">{c.contact_name}</div>}
+                {c.city && <div className="text-xs text-muted-foreground mt-1">{c.city}</div>}
+                {c.email && <div className="text-xs text-muted-foreground truncate">{c.email}</div>}
+                {c.phone && <div className="text-xs text-muted-foreground">{c.phone}</div>}
+              </div>
+              <div className="flex flex-col gap-1 shrink-0">
+                <Button size="icon" variant="ghost" onClick={() => openEdit(c)} aria-label={t("clients.edit")}><Pencil className="size-4" /></Button>
+                <Button size="icon" variant="ghost" onClick={() => del(c)} aria-label={t("common.cancel")}><Trash2 className="size-4 text-destructive" /></Button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
     </div>
   );
 }
