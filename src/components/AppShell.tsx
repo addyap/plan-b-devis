@@ -30,7 +30,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="border-b bg-primary text-primary-foreground">
         <div className="mx-auto max-w-7xl px-6 h-20 flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center gap-3">
-            <div className="size-12 rounded-md bg-primary-foreground/5 ring-1 ring-primary-foreground/10 flex items-center justify-center overflow-hidden">
+            <div className="size-14 rounded-md bg-primary-foreground p-1 shadow-sm flex items-center justify-center overflow-hidden">
               <img src={logoAsset.url} alt="Plan B Concept" className="size-full object-contain" />
             </div>
             <div className="leading-tight">
