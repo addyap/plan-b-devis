@@ -5,11 +5,14 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import "@/i18n";
+import { syncClientLocale } from "@/i18n";
+
+
 
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
@@ -46,6 +49,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useEffect(() => { syncClientLocale(); }, []);
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
