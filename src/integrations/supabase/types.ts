@@ -180,21 +180,32 @@ export type Database = {
           language: Database["public"]["Enums"]["devis_language"]
           last_email_error: string | null
           legal_mentions: string[]
+          mission_phases: string[]
           notes: string | null
+          operation_type: string | null
           payment_methods: string[]
+          payment_schedule: Json
           payment_terms_preset: string | null
           project_description: string | null
           project_duration: string | null
+          project_name: string | null
           project_start: string | null
           sent_at: string | null
           signature_client_name: string | null
           signature_date: string | null
+          site_address_line1: string | null
+          site_address_line2: string | null
+          site_city: string | null
+          site_country: string | null
+          site_postcode: string | null
           status: Database["public"]["Enums"]["devis_status"]
           subtotal_ht: number
+          surface_m2: number | null
           total_ttc: number
           updated_at: string
           validity_until: string
           vat_amount: number
+          works_budget_ht: number | null
         }
         Insert: {
           client_id?: string | null
@@ -211,21 +222,32 @@ export type Database = {
           language?: Database["public"]["Enums"]["devis_language"]
           last_email_error?: string | null
           legal_mentions?: string[]
+          mission_phases?: string[]
           notes?: string | null
+          operation_type?: string | null
           payment_methods?: string[]
+          payment_schedule?: Json
           payment_terms_preset?: string | null
           project_description?: string | null
           project_duration?: string | null
+          project_name?: string | null
           project_start?: string | null
           sent_at?: string | null
           signature_client_name?: string | null
           signature_date?: string | null
+          site_address_line1?: string | null
+          site_address_line2?: string | null
+          site_city?: string | null
+          site_country?: string | null
+          site_postcode?: string | null
           status?: Database["public"]["Enums"]["devis_status"]
           subtotal_ht?: number
+          surface_m2?: number | null
           total_ttc?: number
           updated_at?: string
           validity_until: string
           vat_amount?: number
+          works_budget_ht?: number | null
         }
         Update: {
           client_id?: string | null
@@ -242,21 +264,32 @@ export type Database = {
           language?: Database["public"]["Enums"]["devis_language"]
           last_email_error?: string | null
           legal_mentions?: string[]
+          mission_phases?: string[]
           notes?: string | null
+          operation_type?: string | null
           payment_methods?: string[]
+          payment_schedule?: Json
           payment_terms_preset?: string | null
           project_description?: string | null
           project_duration?: string | null
+          project_name?: string | null
           project_start?: string | null
           sent_at?: string | null
           signature_client_name?: string | null
           signature_date?: string | null
+          site_address_line1?: string | null
+          site_address_line2?: string | null
+          site_city?: string | null
+          site_country?: string | null
+          site_postcode?: string | null
           status?: Database["public"]["Enums"]["devis_status"]
           subtotal_ht?: number
+          surface_m2?: number | null
           total_ttc?: number
           updated_at?: string
           validity_until?: string
           vat_amount?: number
+          works_budget_ht?: number | null
         }
         Relationships: [
           {
@@ -278,6 +311,9 @@ export type Database = {
           id: string
           line_total_ht: number
           line_type: string
+          mission_code: string | null
+          percent_of_budget: number | null
+          pricing_mode: string
           quantity: number
           sort_order: number
           unit: string | null
@@ -293,6 +329,9 @@ export type Database = {
           id?: string
           line_total_ht?: number
           line_type?: string
+          mission_code?: string | null
+          percent_of_budget?: number | null
+          pricing_mode?: string
           quantity?: number
           sort_order?: number
           unit?: string | null
@@ -308,6 +347,9 @@ export type Database = {
           id?: string
           line_total_ht?: number
           line_type?: string
+          mission_code?: string | null
+          percent_of_budget?: number | null
+          pricing_mode?: string
           quantity?: number
           sort_order?: number
           unit?: string | null
