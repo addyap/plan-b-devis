@@ -308,6 +308,40 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
 
   y += 4;
 
+  // Honoraires summary (MOE)
+  if (input.kind === "devis" && input.honorairesHt && input.worksBudgetHt) {
+    doc.setFillColor(247, 248, 250).rect(M, y, pageW - M * 2, 11, "F");
+    doc.setDrawColor(...GOLD).setLineWidth(1.2).line(M, y, M, y + 11);
+    doc.setFont("helvetica", "bold").setFontSize(9).setTextColor(...NAVY);
+    doc.text(L.totalHonoraires[lang], M + 3, y + 7);
+    const pctStr = `${String(input.honorairesPct ?? 0).replace(".", lang === "fr" ? "," : ".")} % ${L.pctOfWorks[lang]}`;
+    doc.text(`${fmtMoney(input.honorairesHt, lang)}  \u00B7  ${pctStr}`, pageW - M - 3, y + 7, { align: "right" });
+    y += 15;
+  }
+
+  // Payment schedule (MOE)
+  if (input.kind === "devis" && input.paymentSchedule && input.paymentSchedule.length) {
+    doc.setFont("helvetica", "bold").setFontSize(8).setTextColor(...NAVY);
+    doc.text(L.paymentSchedule[lang].toUpperCase(), M, y); y += 2;
+    autoTable(doc, {
+      startY: y,
+      margin: { left: M, right: M },
+      head: [[L.description[lang], L.milestone[lang], "%", L.amount[lang]]],
+      body: input.paymentSchedule.map(r => [
+        r.label || "—",
+        r.milestone || "—",
+        `${String(r.pct).replace(".", lang === "fr" ? "," : ".")} %`,
+        fmtMoney(r.amount, lang),
+      ]),
+      headStyles: { fillColor: BRICK, textColor: 255, fontStyle: "bold", fontSize: 9 },
+      bodyStyles: { fontSize: 9, textColor: 30 },
+      columnStyles: { 2: { halign: "right", cellWidth: 24 }, 3: { halign: "right", cellWidth: 32 } },
+      styles: { cellPadding: 2.5, lineColor: [226, 228, 232], lineWidth: 0.2 },
+    });
+    // @ts-expect-error autotable side-effect
+    y = doc.lastAutoTable.finalY + 6;
+  }
+
   // Conditions (devis only includes validity & "Devis gratuit")
   const ensureSpace = (need: number) => { if (y + need > pageH - 30) { doc.addPage(); y = M; } };
 
