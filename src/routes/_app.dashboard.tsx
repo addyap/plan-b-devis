@@ -206,11 +206,12 @@ function Dashboard() {
               <th className="text-left px-4 py-3">{t("dashboard.col_validity")}</th>
               <th className="text-right px-4 py-3">{t("dashboard.col_total")}</th>
               <th className="text-left px-4 py-3">{t("dashboard.col_status")}</th>
+              <th className="px-4 py-3 w-12"></th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={6} className="text-center py-12 text-muted-foreground">{t("dashboard.empty")}</td></tr>
+              <tr><td colSpan={7} className="text-center py-12 text-muted-foreground">{t("dashboard.empty")}</td></tr>
             )}
             {filtered.map((d) => (
               <tr key={d.id} className="border-t hover:bg-muted/30 cursor-pointer" onClick={() => navigate({ to: "/devis/$id", params: { id: d.id } })}>
@@ -223,6 +224,17 @@ function Dashboard() {
                 <td className="px-4 py-3 text-right tabular-nums">{fmtEUR(Number(d.total_ttc), lang)}</td>
                 <td className="px-4 py-3">
                   <Badge className={STATUS_STYLES[d.status]} variant="secondary">{t(`status.${d.status}`)}</Badge>
+                </td>
+                <td className="px-2 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t("devis.pdf")}
+                    title={t("devis.pdf")}
+                    onClick={() => downloadRow(d.id)}
+                  >
+                    <Download className="size-4" />
+                  </Button>
                 </td>
               </tr>
             ))}
