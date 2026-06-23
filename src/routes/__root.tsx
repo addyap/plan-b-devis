@@ -22,7 +22,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Plan B Concept — Devis" },
       { name: "description", content: "Plan B Concept — Internal devis generator." },
-      { name: "robots", content: "noindex, nofollow" },
+      { name: "robots", content: "noindex, nofollow, noarchive" },
+      { name: "googlebot", content: "noindex, nofollow, noarchive" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
