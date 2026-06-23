@@ -8,7 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { fmtDate, fmtEUR, todayISO, type Locale } from "@/lib/format";
-import { Plus, Search } from "lucide-react";
+import { Download, Plus, Search } from "lucide-react";
+import { toast } from "sonner";
+import { generateDevisPdf, type PdfClient, type PdfDevis, type PdfLine, type PdfProfile } from "@/lib/pdf";
 
 export const Route = createFileRoute("/_app/dashboard")({
   component: Dashboard,
