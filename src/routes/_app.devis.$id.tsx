@@ -7,11 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Download, Eye, FileCheck2, GripVertical, Library, Mail, Plus, Trash2, UserPlus } from "lucide-react";
-import { fmtEUR, addDays } from "@/lib/format";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Separator } from "@/components/ui/separator";
+import {
+  ArrowDown, ArrowLeft, ArrowUp, Download, Eye, FileCheck2,
+  Mail, Plus, Save, Trash2, UserPlus, Library,
+} from "lucide-react";
+import { fmtEUR, addDays, todayISO } from "@/lib/format";
 import { toast } from "sonner";
 import { generateDevisPdf, pdfToBase64, type PdfProfile, type PdfClient, type PdfDevis, type PdfLine } from "@/lib/pdf";
 
@@ -19,83 +24,308 @@ export const Route = createFileRoute("/_app/devis/$id")({
   component: DevisEditor,
 });
 
-type Line = { id?: string; description: string; quantity: number; unit: string; unit_price_ht: number; line_total_ht: number; sort_order: number };
+// ──────────────────────────────────────────────────────────────────────────────
+// Types
+// ──────────────────────────────────────────────────────────────────────────────
 
-type Devis = {
-  id: string; devis_number: string; client_id: string | null;
-  issue_date: string; validity_until: string;
-  status: "draft" | "sent" | "accepted" | "declined" | "expired";
-  language: "en" | "fr";
-  project_description: string | null; project_start: string | null; project_duration: string | null;
-  subtotal_ht: number; vat_amount: number; total_ttc: number;
-  deposit_amount: number | null; notes: string | null;
-  sent_at?: string | null;
+type LineType = "produit" | "prestation" | "forfait" | "remise";
+type DiscountType = "percent" | "amount";
+type Status = "draft" | "sent" | "accepted" | "declined" | "expired";
+
+type Line = {
+  id?: string;
+  line_type: LineType;
+  description: string;
+  details: string;
+  quantity: number;
+  unit: string;
+  unit_price_ht: number;
+  discount_type: DiscountType;
+  discount_value: number;
+  vat_rate: number;
+  sort_order: number;
 };
 
-type Client = { id: string; name: string };
+type Devis = {
+  id: string;
+  devis_number: string;
+  client_id: string | null;
+  issue_date: string;
+  validity_until: string;
+  status: Status;
+  language: "fr" | "en";
+  project_description: string | null;
+  project_start: string | null;
+  project_duration: string | null;
+  notes: string | null;
+  // extended
+  global_discount_type: DiscountType;
+  global_discount_value: number;
+  deposit_type: DiscountType;
+  deposit_value: number;
+  deposit_amount: number | null;
+  payment_terms_preset: string | null;
+  payment_methods: string[];
+  conditions_notes: string | null;
+  legal_mentions: string[];
+  signature_client_name: string | null;
+  signature_date: string | null;
+  sent_at: string | null;
+};
+
+type ClientRow = {
+  id: string;
+  name: string;
+  client_type: "particulier" | "professionnel";
+  contact_name: string | null;
+  email: string | null;
+  phone: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  postcode: string | null;
+  city: string | null;
+  country: string | null;
+  siret: string | null;
+  vat_number: string | null;
+};
+
+type ClientDraft = Omit<ClientRow, "id">;
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Constants
+// ──────────────────────────────────────────────────────────────────────────────
+
+const UNITS = ["unité", "heure", "jour", "m²", "m³", "ml", "forfait", "lot"] as const;
+const VAT_RATES = [0, 5.5, 10, 20] as const;
+const VALIDITY_OPTIONS = [15, 30, 45, 60, 90] as const;
+const LINE_TYPES: { value: LineType; label: string }[] = [
+  { value: "produit", label: "Produit" },
+  { value: "prestation", label: "Prestation" },
+  { value: "forfait", label: "Forfait" },
+  { value: "remise", label: "Remise" },
+];
+const STATUS_LABELS: Record<Status, string> = {
+  draft: "Brouillon", sent: "Envoyé", accepted: "Accepté",
+  declined: "Refusé", expired: "Expiré",
+};
+const PAYMENT_TERMS_PRESETS = [
+  "Comptant",
+  "30 jours",
+  "50% à la commande / solde à la livraison",
+  "Échéancier personnalisé",
+];
+const PAYMENT_METHODS = ["Virement", "Chèque", "Carte", "Espèces"];
+const LEGAL_MENTIONS = [
+  { key: "free", label: "Devis gratuit" },
+  { key: "vat293b", label: "TVA non applicable, art. 293 B du CGI" },
+  { key: "late", label: "Pénalités de retard" },
+  { key: "discount", label: "Escompte pour paiement anticipé" },
+];
+
+const emptyClient = (): ClientDraft => ({
+  name: "",
+  client_type: "professionnel",
+  contact_name: "",
+  email: "",
+  phone: "",
+  address_line1: "",
+  address_line2: "",
+  postcode: "",
+  city: "",
+  country: "France",
+  siret: "",
+  vat_number: "",
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Totals math
+// ──────────────────────────────────────────────────────────────────────────────
+
+function lineNetHT(l: Pick<Line, "quantity" | "unit_price_ht" | "discount_type" | "discount_value" | "line_type">) {
+  const gross = Number(l.quantity || 0) * Number(l.unit_price_ht || 0);
+  const sign = l.line_type === "remise" ? -1 : 1;
+  const base = Math.abs(gross);
+  const disc =
+    l.discount_type === "percent"
+      ? base * (Number(l.discount_value || 0) / 100)
+      : Number(l.discount_value || 0);
+  return +(sign * Math.max(0, base - disc)).toFixed(2);
+}
+
+function computeTotals(lines: Line[], gType: DiscountType, gValue: number, depType: DiscountType, depValue: number) {
+  const linesNet = lines.map(l => ({ vat: Number(l.vat_rate || 0), net: lineNetHT(l) }));
+  const subtotalHT = +linesNet.reduce((s, x) => s + x.net, 0).toFixed(2);
+
+  // Global discount applied proportionally to positive net only.
+  const positiveNet = linesNet.reduce((s, x) => (x.net > 0 ? s + x.net : s), 0);
+  const globalDiscAmt = positiveNet === 0 ? 0 :
+    gType === "percent"
+      ? +(positiveNet * (Number(gValue || 0) / 100)).toFixed(2)
+      : Math.min(Number(gValue || 0), positiveNet);
+
+  const factor = positiveNet === 0 ? 1 : Math.max(0, 1 - globalDiscAmt / positiveNet);
+
+  const vatByRate = new Map<number, number>();
+  let netAfter = 0;
+  for (const x of linesNet) {
+    const adjusted = x.net > 0 ? +(x.net * factor).toFixed(2) : x.net;
+    netAfter += adjusted;
+    const vat = +(Math.max(0, adjusted) * (x.vat / 100)).toFixed(2);
+    // negative lines (remise) still affect their own rate
+    const vatLine = +(adjusted * (x.vat / 100)).toFixed(2);
+    vatByRate.set(x.vat, +((vatByRate.get(x.vat) ?? 0) + vatLine).toFixed(2));
+    void vat;
+  }
+  netAfter = +netAfter.toFixed(2);
+  const totalVAT = +Array.from(vatByRate.values()).reduce((s, v) => s + v, 0).toFixed(2);
+  const totalTTC = +(netAfter + totalVAT).toFixed(2);
+
+  const depositAmount =
+    depType === "percent"
+      ? +(totalTTC * (Number(depValue || 0) / 100)).toFixed(2)
+      : Math.min(Number(depValue || 0), totalTTC);
+  const balance = +(totalTTC - depositAmount).toFixed(2);
+
+  return {
+    subtotalHT,
+    globalDiscAmt,
+    netAfterDiscount: netAfter,
+    vatByRate: Array.from(vatByRate.entries()).filter(([, v]) => v !== 0).sort((a, b) => a[0] - b[0]),
+    totalVAT,
+    totalTTC,
+    depositAmount,
+    balance,
+  };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Component
+// ──────────────────────────────────────────────────────────────────────────────
 
 function DevisEditor() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
+
   const [devis, setDevis] = useState<Devis | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
+  const [clients, setClients] = useState<ClientRow[]>([]);
   const [profile, setProfile] = useState<PdfProfile | null>(null);
   const [presets, setPresets] = useState<{ id: string; label_en: string; label_fr: string; default_unit: string | null; default_rate: number | null }[]>([]);
-  const [fullClientData, setFullClientData] = useState<PdfClient>(null);
+
+  const [clientMode, setClientMode] = useState<"existing" | "new">("existing");
+  const [newClient, setNewClient] = useState<ClientDraft>(emptyClient());
+  const [savedClient, setSavedClient] = useState<ClientRow | null>(null);
+
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [converting, setConverting] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [newClientOpen, setNewClientOpen] = useState(false);
   const [presetsOpen, setPresetsOpen] = useState(false);
 
-  useEffect(() => {
-    if (!devis?.client_id) { setFullClientData(null); return; }
-    supabase.from("clients").select("*").eq("id", devis.client_id).maybeSingle().then(({ data }) => {
-      setFullClientData((data as PdfClient) ?? null);
-    });
-  }, [devis?.client_id]);
-
+  // ── load ────────────────────────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
       const [d, l, c, p, pr] = await Promise.all([
         supabase.from("devis").select("*").eq("id", id).maybeSingle(),
         supabase.from("devis_lines").select("*").eq("devis_id", id).order("sort_order"),
-        supabase.from("clients").select("id, name").order("name"),
+        supabase.from("clients").select("*").order("name"),
         supabase.from("business_profile").select("*").limit(1).maybeSingle(),
         supabase.from("service_presets").select("*").order("sort_order"),
       ]);
-      setDevis(d.data as Devis);
-      setLines((l.data ?? []) as Line[]);
-      setClients((c.data ?? []) as Client[]);
+
+      const dd = d.data as any;
+      if (dd) {
+        setDevis({
+          id: dd.id,
+          devis_number: dd.devis_number,
+          client_id: dd.client_id,
+          issue_date: dd.issue_date,
+          validity_until: dd.validity_until,
+          status: dd.status,
+          language: dd.language ?? "fr",
+          project_description: dd.project_description,
+          project_start: dd.project_start,
+          project_duration: dd.project_duration,
+          notes: dd.notes,
+          global_discount_type: dd.global_discount_type ?? "percent",
+          global_discount_value: Number(dd.global_discount_value ?? 0),
+          deposit_type: dd.deposit_type ?? "percent",
+          deposit_value: Number(dd.deposit_value ?? 0),
+          deposit_amount: dd.deposit_amount,
+          payment_terms_preset: dd.payment_terms_preset,
+          payment_methods: dd.payment_methods ?? [],
+          conditions_notes: dd.conditions_notes,
+          legal_mentions: dd.legal_mentions ?? [],
+          signature_client_name: dd.signature_client_name,
+          signature_date: dd.signature_date,
+          sent_at: dd.sent_at,
+        });
+      }
+      setLines(((l.data ?? []) as any[]).map(x => ({
+        id: x.id,
+        line_type: x.line_type ?? "prestation",
+        description: x.description ?? "",
+        details: x.details ?? "",
+        quantity: Number(x.quantity ?? 1),
+        unit: x.unit ?? "forfait",
+        unit_price_ht: Number(x.unit_price_ht ?? 0),
+        discount_type: x.discount_type ?? "percent",
+        discount_value: Number(x.discount_value ?? 0),
+        vat_rate: Number(x.vat_rate ?? 20),
+        sort_order: x.sort_order ?? 0,
+      })));
+      setClients((c.data ?? []) as ClientRow[]);
       setProfile(p.data as unknown as PdfProfile);
       setPresets(pr.data ?? []);
     })();
   }, [id]);
 
+  // Refresh full client row when selected
+  useEffect(() => {
+    if (!devis?.client_id) { setSavedClient(null); return; }
+    const found = clients.find(c => c.id === devis.client_id);
+    if (found) setSavedClient(found);
+    else {
+      supabase.from("clients").select("*").eq("id", devis.client_id).maybeSingle()
+        .then(({ data }) => setSavedClient((data as ClientRow) ?? null));
+    }
+  }, [devis?.client_id, clients]);
+
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
 
-  const subtotal = useMemo(() => lines.reduce((s, l) => s + Number(l.quantity) * Number(l.unit_price_ht), 0), [lines]);
-  const vatRate = profile?.vat_status === "tva_registered" ? Number(profile?.vat_rate ?? 0) : 0;
-  const vatAmount = +(subtotal * (vatRate / 100)).toFixed(2);
-  const totalTtc = +(subtotal + vatAmount).toFixed(2);
-  const balance = devis?.deposit_amount ? totalTtc - Number(devis.deposit_amount) : null;
+  // ── totals ──────────────────────────────────────────────────────────────────
+  const totals = useMemo(
+    () => devis
+      ? computeTotals(lines, devis.global_discount_type, devis.global_discount_value, devis.deposit_type, devis.deposit_value)
+      : null,
+    [lines, devis?.global_discount_type, devis?.global_discount_value, devis?.deposit_type, devis?.deposit_value]
+  );
 
-  if (!devis || !profile) return <div className="text-muted-foreground">Loading…</div>;
+  if (!devis || !profile || !totals) return <div className="text-muted-foreground">Chargement…</div>;
 
   const update = (patch: Partial<Devis>) => setDevis({ ...devis, ...patch });
 
+  // ── line helpers ────────────────────────────────────────────────────────────
+  const addLine = (init?: Partial<Line>) => setLines([...lines, {
+    line_type: "prestation",
+    description: "",
+    details: "",
+    quantity: 1,
+    unit: "forfait",
+    unit_price_ht: 0,
+    discount_type: "percent",
+    discount_value: 0,
+    vat_rate: Number((profile as any)?.vat_rate ?? 20),
+    sort_order: lines.length,
+    ...init,
+  }]);
   const updateLine = (i: number, patch: Partial<Line>) => {
     const next = [...lines];
     next[i] = { ...next[i], ...patch };
-    next[i].line_total_ht = +(Number(next[i].quantity) * Number(next[i].unit_price_ht)).toFixed(2);
     setLines(next);
   };
-
-  const addLine = () => setLines([...lines, { description: "", quantity: 1, unit: "forfait", unit_price_ht: 0, line_total_ht: 0, sort_order: lines.length }]);
-  const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
+  const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i).map((l, idx) => ({ ...l, sort_order: idx })));
   const moveLine = (i: number, dir: -1 | 1) => {
     const j = i + dir;
     if (j < 0 || j >= lines.length) return;
@@ -103,282 +333,886 @@ function DevisEditor() {
     [next[i], next[j]] = [next[j], next[i]];
     setLines(next.map((l, idx) => ({ ...l, sort_order: idx })));
   };
-
   const addPreset = (p: typeof presets[number]) => {
-    setLines([...lines, {
+    addLine({
       description: devis.language === "fr" ? p.label_fr : p.label_en,
-      quantity: 1, unit: p.default_unit ?? "forfait",
-      unit_price_ht: Number(p.default_rate ?? 0), line_total_ht: Number(p.default_rate ?? 0),
-      sort_order: lines.length,
-    }]);
+      unit: p.default_unit ?? "forfait",
+      unit_price_ht: Number(p.default_rate ?? 0),
+    });
     setPresetsOpen(false);
   };
 
-  const save = async (newStatus?: Devis["status"]) => {
-    setSaving(true);
-    const payload = {
-      client_id: devis.client_id, issue_date: devis.issue_date, validity_until: devis.validity_until,
-      status: newStatus ?? devis.status, language: devis.language,
-      project_description: devis.project_description, project_start: devis.project_start || null, project_duration: devis.project_duration,
-      subtotal_ht: subtotal, vat_amount: vatAmount, total_ttc: totalTtc,
-      deposit_amount: devis.deposit_amount, notes: devis.notes,
-    };
-    const { error: e1 } = await supabase.from("devis").update(payload).eq("id", id);
-    if (e1) { toast.error(e1.message); setSaving(false); return false; }
-    await supabase.from("devis_lines").delete().eq("devis_id", id);
-    if (lines.length) {
-      const { error: e2 } = await supabase.from("devis_lines").insert(
-        lines.map((l, i) => ({
-          devis_id: id, description: l.description, quantity: l.quantity, unit: l.unit,
-          unit_price_ht: l.unit_price_ht, line_total_ht: +(Number(l.quantity) * Number(l.unit_price_ht)).toFixed(2),
-          sort_order: i,
-        })),
-      );
-      if (e2) { toast.error(e2.message); setSaving(false); return false; }
+  // ── save flow ───────────────────────────────────────────────────────────────
+  const validate = (): string | null => {
+    if (clientMode === "existing" && !devis.client_id) return "Sélectionnez un client ou créez-en un.";
+    if (clientMode === "new" && !newClient.name.trim()) return "Nom du nouveau client requis.";
+    if (!devis.issue_date) return "Date d'émission requise.";
+    if (!devis.validity_until) return "Date de validité requise.";
+    if (lines.length === 0) return "Ajoutez au moins une ligne.";
+    for (const [i, l] of lines.entries()) {
+      if (!l.description.trim()) return `Ligne ${i + 1} : désignation requise.`;
     }
-    if (newStatus) setDevis({ ...devis, status: newStatus });
-    setSaving(false);
-    toast.success("Saved");
-    return true;
+    return null;
   };
 
+  const upsertNewClient = async (): Promise<string | null> => {
+    if (clientMode !== "new") return devis.client_id;
+    const payload = {
+      ...newClient,
+      siret: newClient.client_type === "professionnel" ? newClient.siret : null,
+    };
+    const { data, error } = await supabase.from("clients").insert(payload).select("*").single();
+    if (error) { toast.error(error.message); return null; }
+    setClients(prev => [...prev, data as ClientRow]);
+    setClientMode("existing");
+    setNewClient(emptyClient());
+    return (data as ClientRow).id;
+  };
+
+  const save = async (newStatus?: Status): Promise<boolean> => {
+    const err = validate();
+    if (err) { toast.error(err); return false; }
+    setSaving(true);
+    try {
+      const clientId = await upsertNewClient();
+      if (clientMode === "new" && !clientId) { setSaving(false); return false; }
+
+      const payload = {
+        client_id: clientId,
+        issue_date: devis.issue_date,
+        validity_until: devis.validity_until,
+        status: newStatus ?? devis.status,
+        language: devis.language,
+        project_description: devis.project_description,
+        project_start: devis.project_start || null,
+        project_duration: devis.project_duration,
+        subtotal_ht: totals.netAfterDiscount,
+        vat_amount: totals.totalVAT,
+        total_ttc: totals.totalTTC,
+        deposit_amount: totals.depositAmount || null,
+        notes: devis.notes,
+        global_discount_type: devis.global_discount_type,
+        global_discount_value: devis.global_discount_value,
+        deposit_type: devis.deposit_type,
+        deposit_value: devis.deposit_value,
+        payment_terms_preset: devis.payment_terms_preset,
+        payment_methods: devis.payment_methods,
+        conditions_notes: devis.conditions_notes,
+        legal_mentions: devis.legal_mentions,
+        signature_client_name: devis.signature_client_name,
+        signature_date: devis.signature_date,
+      };
+
+      const { error: e1 } = await supabase.from("devis").update(payload).eq("id", id);
+      if (e1) { toast.error(e1.message); setSaving(false); return false; }
+
+      await supabase.from("devis_lines").delete().eq("devis_id", id);
+      if (lines.length) {
+        const { error: e2 } = await supabase.from("devis_lines").insert(
+          lines.map((l, i) => ({
+            devis_id: id,
+            line_type: l.line_type,
+            description: l.description,
+            details: l.details || null,
+            quantity: l.quantity,
+            unit: l.unit,
+            unit_price_ht: l.unit_price_ht,
+            discount_type: l.discount_type,
+            discount_value: l.discount_value,
+            vat_rate: l.vat_rate,
+            line_total_ht: lineNetHT(l),
+            sort_order: i,
+          })),
+        );
+        if (e2) { toast.error(e2.message); setSaving(false); return false; }
+      }
+      if (newStatus || clientId !== devis.client_id) {
+        setDevis({ ...devis, status: newStatus ?? devis.status, client_id: clientId });
+      }
+      toast.success("Enregistré");
+      return true;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── PDF / send ──────────────────────────────────────────────────────────────
   const pdfDevis: PdfDevis = {
-    devis_number: devis.devis_number, issue_date: devis.issue_date, validity_until: devis.validity_until,
+    devis_number: devis.devis_number,
+    issue_date: devis.issue_date,
+    validity_until: devis.validity_until,
     language: devis.language,
-    project_description: devis.project_description, project_start: devis.project_start, project_duration: devis.project_duration,
-    subtotal_ht: subtotal, vat_amount: vatAmount, total_ttc: totalTtc,
-    deposit_amount: devis.deposit_amount, notes: devis.notes,
+    project_description: devis.project_description,
+    project_start: devis.project_start,
+    project_duration: devis.project_duration,
+    subtotal_ht: totals.netAfterDiscount,
+    vat_amount: totals.totalVAT,
+    total_ttc: totals.totalTTC,
+    deposit_amount: totals.depositAmount || null,
+    notes: [devis.notes, devis.conditions_notes].filter(Boolean).join("\n\n") || null,
   };
 
-  const pdfLines: PdfLine[] = lines.map((l) => ({ description: l.description, quantity: Number(l.quantity), unit: l.unit, unit_price_ht: Number(l.unit_price_ht), line_total_ht: +(Number(l.quantity) * Number(l.unit_price_ht)).toFixed(2) }));
+  const pdfLines: PdfLine[] = lines.map(l => ({
+    description: [l.description, l.details].filter(Boolean).join("\n"),
+    quantity: Number(l.quantity),
+    unit: l.unit,
+    unit_price_ht: Number(l.unit_price_ht),
+    line_total_ht: lineNetHT(l),
+  }));
+
+  const pdfClient: PdfClient = savedClient ?? (clientMode === "new" ? {
+    name: newClient.name,
+    contact_name: newClient.contact_name,
+    address_line1: newClient.address_line1,
+    address_line2: newClient.address_line2,
+    postcode: newClient.postcode,
+    city: newClient.city,
+    country: newClient.country,
+    email: newClient.email,
+    phone: newClient.phone,
+  } : null);
 
   const downloadPdf = async () => {
     try {
-      const doc = await generateDevisPdf(pdfDevis, pdfLines, profile, fullClientData);
+      const doc = await generateDevisPdf(pdfDevis, pdfLines, profile, pdfClient);
       doc.save(`${devis.devis_number}.pdf`);
-    } catch (e) {
-      toast.error(`PDF failed: ${(e as Error).message}`);
-    }
+    } catch (e) { toast.error(`PDF: ${(e as Error).message}`); }
   };
 
   const openPreview = async () => {
     try {
-      const doc = await generateDevisPdf(pdfDevis, pdfLines, profile, fullClientData);
+      const doc = await generateDevisPdf(pdfDevis, pdfLines, profile, pdfClient);
       const blob = doc.output("blob");
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(URL.createObjectURL(blob));
       setPreviewOpen(true);
-    } catch (e) {
-      toast.error(`Preview failed: ${(e as Error).message}`);
-    }
+    } catch (e) { toast.error(`Aperçu: ${(e as Error).message}`); }
   };
 
   const sendToClient = async () => {
-    if (!fullClientData?.email) return toast.error("Client has no email address.");
-    if (!profile.sender_email) return toast.error("Set a sender email in Settings first.");
+    const email = savedClient?.email || newClient.email;
+    if (!email) return toast.error("Le client n'a pas d'adresse email.");
+    if (!profile.sender_email) return toast.error("Configurez une adresse expéditeur dans Réglages.");
     setSending(true);
     try {
       const ok = await save();
-      if (!ok) { setSending(false); return; }
-      const doc = await generateDevisPdf(pdfDevis, pdfLines, profile, fullClientData);
+      if (!ok) return;
+      const doc = await generateDevisPdf(pdfDevis, pdfLines, profile, pdfClient);
       const b64 = await pdfToBase64(doc);
       const { data, error } = await supabase.functions.invoke("send-devis", {
-        body: { devis_id: id, to: fullClientData.email, pdf_base64: b64, filename: `${devis.devis_number}.pdf` },
+        body: { devis_id: id, to: email, pdf_base64: b64, filename: `${devis.devis_number}.pdf` },
       });
       if (error || (data && (data as any).error)) {
-        const msg = error?.message || (data as any)?.error || "Send failed";
+        const msg = error?.message || (data as any)?.error || "Envoi échoué";
         await supabase.from("devis").update({ last_email_error: msg }).eq("id", id);
-        toast.error(`Email failed: ${msg}`);
+        toast.error(`Email: ${msg}`);
       } else {
         const now = new Date().toISOString();
         await supabase.from("devis").update({ sent_at: now, status: "sent", last_email_error: null }).eq("id", id);
         setDevis({ ...devis, sent_at: now, status: "sent" });
-        toast.success(`Sent to ${fullClientData.email}`);
+        toast.success(`Envoyé à ${email}`);
       }
-    } catch (e) {
-      toast.error(`Send failed: ${(e as Error).message}`);
-    } finally {
-      setSending(false);
-    }
+    } catch (e) { toast.error(`Envoi: ${(e as Error).message}`); }
+    finally { setSending(false); }
   };
 
   const convertToFacture = async () => {
     setConverting(true);
     try {
       const ok = await save();
-      if (!ok) { setConverting(false); return; }
+      if (!ok) return;
       const { data: num, error: nErr } = await supabase.rpc("next_facture_number");
-      if (nErr || !num) throw new Error(nErr?.message || "No number");
-      const today = new Date().toISOString().slice(0, 10);
-      const dueDays = 30;
-      const dueDate = addDays(today, dueDays);
+      if (nErr || !num) throw new Error(nErr?.message || "Numéro indisponible");
+      const today = todayISO();
       const { data: fac, error: fErr } = await supabase.from("factures").insert({
         facture_number: num as string,
         devis_id: id,
         client_id: devis.client_id,
         issue_date: today,
-        due_date: dueDate,
+        due_date: addDays(today, 30),
         language: devis.language,
         project_description: devis.project_description,
         project_start: devis.project_start,
         project_duration: devis.project_duration,
-        subtotal_ht: subtotal,
-        vat_amount: vatAmount,
-        total_ttc: totalTtc,
-        deposit_amount: devis.deposit_amount,
+        subtotal_ht: totals.netAfterDiscount,
+        vat_amount: totals.totalVAT,
+        total_ttc: totals.totalTTC,
+        deposit_amount: totals.depositAmount || null,
         notes: devis.notes,
       }).select("id").single();
-      if (fErr || !fac) throw new Error(fErr?.message || "Insert failed");
+      if (fErr || !fac) throw new Error(fErr?.message || "Insertion échouée");
       if (lines.length) {
         await supabase.from("facture_lines").insert(lines.map((l, i) => ({
-          facture_id: fac.id, description: l.description, quantity: l.quantity, unit: l.unit,
-          unit_price_ht: l.unit_price_ht, line_total_ht: +(Number(l.quantity) * Number(l.unit_price_ht)).toFixed(2),
+          facture_id: fac.id,
+          description: l.description,
+          quantity: l.quantity,
+          unit: l.unit,
+          unit_price_ht: l.unit_price_ht,
+          line_total_ht: lineNetHT(l),
           sort_order: i,
         })));
       }
-      toast.success(`Facture ${num} created`);
+      toast.success(`Facture ${num} créée`);
       navigate({ to: "/factures/$id", params: { id: fac.id } });
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setConverting(false);
-    }
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setConverting(false); }
   };
 
+  // ── render ──────────────────────────────────────────────────────────────────
+  const activeClient: ClientDraft = clientMode === "new"
+    ? newClient
+    : (savedClient ? { ...savedClient } : emptyClient());
+  const setActiveClient = (patch: Partial<ClientDraft>) => {
+    if (clientMode === "new") setNewClient({ ...newClient, ...patch });
+  };
+  const validityDays = (() => {
+    if (!devis.issue_date || !devis.validity_until) return 30;
+    const a = new Date(devis.issue_date).getTime();
+    const b = new Date(devis.validity_until).getTime();
+    return Math.max(0, Math.round((b - a) / 86400000));
+  })();
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-4 justify-between">
+    <div className="space-y-6 max-w-7xl">
+      {/* Top bar */}
+      <div className="flex flex-wrap items-center gap-3 justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate({ to: "/dashboard" })}><ArrowLeft className="size-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => navigate({ to: "/dashboard" })} aria-label="Retour">
+            <ArrowLeft className="size-4" />
+          </Button>
           <div>
-            <div className="text-xs text-muted-foreground uppercase tracking-wide">Devis</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Devis</div>
             <h1 className="text-2xl font-semibold font-mono">{devis.devis_number}</h1>
           </div>
-          <Badge variant="secondary" className="ml-2">{devis.status}</Badge>
-          {devis.sent_at && <span className="text-xs text-muted-foreground">Sent {new Date(devis.sent_at).toLocaleString()}</span>}
+          <Badge variant="secondary" className="ml-2">{STATUS_LABELS[devis.status]}</Badge>
+          {devis.sent_at && (
+            <span className="text-xs text-muted-foreground">
+              Envoyé le {new Date(devis.sent_at).toLocaleDateString("fr-FR")}
+            </span>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={openPreview}><Eye className="size-4" /> Preview</Button>
+          <Button variant="outline" onClick={openPreview}><Eye className="size-4" /> Aperçu</Button>
           <Button variant="outline" onClick={downloadPdf}><Download className="size-4" /> PDF</Button>
-          <Button variant="outline" onClick={sendToClient} disabled={sending}><Mail className="size-4" /> {sending ? "Sending…" : "Send to client"}</Button>
-          <Button variant="outline" onClick={() => save("accepted")} disabled={saving}>Accepted</Button>
-          <Button variant="outline" onClick={() => save("declined")} disabled={saving}>Declined</Button>
-          <Button variant="outline" onClick={convertToFacture} disabled={converting}><FileCheck2 className="size-4" /> {converting ? "…" : "Convert to facture"}</Button>
-          <Button onClick={() => save()} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+          <Button variant="outline" onClick={sendToClient} disabled={sending}>
+            <Mail className="size-4" /> {sending ? "Envoi…" : "Envoyer"}
+          </Button>
+          <Button variant="outline" onClick={convertToFacture} disabled={converting}>
+            <FileCheck2 className="size-4" /> {converting ? "…" : "Convertir en facture"}
+          </Button>
+          <Button onClick={() => save()} disabled={saving}>
+            <Save className="size-4" /> {saving ? "Enregistrement…" : "Enregistrer"}
+          </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="p-5 space-y-4 lg:col-span-2">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Client</Label>
-              <div className="flex gap-2">
-                <Select value={devis.client_id ?? ""} onValueChange={(v) => update({ client_id: v || null })}>
-                  <SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
+        {/* LEFT — main form */}
+        <div className="lg:col-span-2 space-y-6">
+
+          {/* HEADER / META */}
+          <Card className="p-5 space-y-4">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">En-tête</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="N° de devis">
+                <Input
+                  value={devis.devis_number}
+                  onChange={(e) => update({ devis_number: e.target.value })}
+                  className="font-mono"
+                  placeholder="DEV-2026-0001"
+                />
+              </Field>
+              <Field label="Statut">
+                <Select value={devis.status} onValueChange={(v) => update({ status: v as Status })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    {(Object.keys(STATUS_LABELS) as Status[]).map(s =>
+                      <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <NewClientDialog open={newClientOpen} setOpen={setNewClientOpen} onCreated={(c) => { setClients([...clients, c]); update({ client_id: c.id }); }} />
+              </Field>
+              <Field label="Date d'émission">
+                <Input
+                  type="date"
+                  value={devis.issue_date}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    update({ issue_date: v, validity_until: addDays(v, validityDays || 30) });
+                  }}
+                />
+              </Field>
+              <Field label="Date de validité">
+                <Input
+                  type="date"
+                  value={devis.validity_until}
+                  onChange={(e) => update({ validity_until: e.target.value })}
+                />
+              </Field>
+              <Field label="Validité de l'offre">
+                <Select
+                  value={String(validityDays)}
+                  onValueChange={(v) => update({ validity_until: addDays(devis.issue_date, Number(v)) })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {VALIDITY_OPTIONS.map(d => <SelectItem key={d} value={String(d)}>{d} jours</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Langue">
+                <Select value={devis.language} onValueChange={(v) => update({ language: v as "fr" | "en" })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fr">Français</SelectItem>
+                    <SelectItem value="en">English</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+          </Card>
+
+          {/* CLIENT */}
+          <Card className="p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Client</h2>
+              <div className="flex items-center gap-1 text-xs">
+                <Button
+                  variant={clientMode === "existing" ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setClientMode("existing")}
+                >Existant</Button>
+                <Button
+                  variant={clientMode === "new" ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => { setClientMode("new"); update({ client_id: null }); }}
+                >
+                  <UserPlus className="size-3.5" /> Nouveau client
+                </Button>
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Language</Label>
-              <Tabs value={devis.language} onValueChange={(v) => update({ language: v as "en" | "fr" })}>
-                <TabsList><TabsTrigger value="en">English</TabsTrigger><TabsTrigger value="fr">Français</TabsTrigger></TabsList>
-              </Tabs>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Issue date</Label>
-              <Input type="date" value={devis.issue_date} onChange={(e) => {
-                const v = e.target.value;
-                update({ issue_date: v, validity_until: addDays(v, (profile as any).default_validity_days ?? 90) });
-              }} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Valid until</Label>
-              <Input type="date" value={devis.validity_until} onChange={(e) => update({ validity_until: e.target.value })} />
-            </div>
-          </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs">Project description</Label>
-            <Textarea rows={3} value={devis.project_description ?? ""} onChange={(e) => update({ project_description: e.target.value })} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Project start</Label>
-              <Input type="date" value={devis.project_start ?? ""} onChange={(e) => update({ project_start: e.target.value || null })} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Estimated duration</Label>
-              <Input value={devis.project_duration ?? ""} onChange={(e) => update({ project_duration: e.target.value })} placeholder="e.g. 6 months" />
-            </div>
-          </div>
+            {clientMode === "existing" ? (
+              <Field label="Sélectionner un client">
+                <Select value={devis.client_id ?? ""} onValueChange={(v) => update({ client_id: v || null })}>
+                  <SelectTrigger><SelectValue placeholder="— Choisir —" /></SelectTrigger>
+                  <SelectContent>
+                    {clients.map(c => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} {c.client_type === "particulier" ? "·  particulier" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            ) : null}
 
-          <div className="pt-4 border-t">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-semibold">Line items</h2>
-              <div className="flex gap-2">
-                <PresetsDialog open={presetsOpen} setOpen={setPresetsOpen} presets={presets} lang={devis.language} onPick={addPreset} />
-                <Button size="sm" variant="outline" onClick={addLine}><Plus className="size-4" /> Add line</Button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              {lines.map((l, i) => (
-                <div key={i} className="grid grid-cols-12 gap-2 items-start border rounded-md p-2 bg-card">
-                  <div className="col-span-1 flex flex-col items-center pt-2 text-muted-foreground">
-                    <button onClick={() => moveLine(i, -1)} className="hover:text-foreground" type="button">▲</button>
-                    <GripVertical className="size-3" />
-                    <button onClick={() => moveLine(i, 1)} className="hover:text-foreground" type="button">▼</button>
-                  </div>
-                  <Textarea rows={2} className="col-span-5" placeholder="Description" value={l.description} onChange={(e) => updateLine(i, { description: e.target.value })} />
-                  <Input className="col-span-1" type="number" step="0.01" value={l.quantity} onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })} />
-                  <Input className="col-span-1" value={l.unit} onChange={(e) => updateLine(i, { unit: e.target.value })} />
-                  <Input className="col-span-2" type="number" step="0.01" value={l.unit_price_ht} onChange={(e) => updateLine(i, { unit_price_ht: Number(e.target.value) })} />
-                  <div className="col-span-1 pt-2 text-right text-sm tabular-nums">{fmtEUR(l.quantity * l.unit_price_ht)}</div>
-                  <Button size="icon" variant="ghost" className="col-span-1" onClick={() => removeLine(i)}><Trash2 className="size-4" /></Button>
+            {/* Editable / read-only block depending on mode */}
+            {(clientMode === "new" || savedClient) && (
+              <div className={`space-y-4 ${clientMode === "existing" ? "opacity-90" : ""}`}>
+                <div className="space-y-2">
+                  <Label className="text-xs">Type</Label>
+                  <RadioGroup
+                    value={activeClient.client_type}
+                    onValueChange={(v) => setActiveClient({ client_type: v as "particulier" | "professionnel" })}
+                    className="flex gap-6"
+                    disabled={clientMode === "existing"}
+                  >
+                    <label className="flex items-center gap-2 text-sm">
+                      <RadioGroupItem value="particulier" /> Particulier
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <RadioGroupItem value="professionnel" /> Professionnel
+                    </label>
+                  </RadioGroup>
                 </div>
-              ))}
-              {lines.length === 0 && <div className="text-center text-sm text-muted-foreground py-6 border border-dashed rounded-md">No lines yet.</div>}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label={activeClient.client_type === "professionnel" ? "Raison sociale" : "Nom"}>
+                    <Input
+                      value={activeClient.name}
+                      onChange={(e) => setActiveClient({ name: e.target.value })}
+                      readOnly={clientMode === "existing"}
+                    />
+                  </Field>
+                  <Field label="Contact">
+                    <Input
+                      value={activeClient.contact_name ?? ""}
+                      onChange={(e) => setActiveClient({ contact_name: e.target.value })}
+                      readOnly={clientMode === "existing"}
+                    />
+                  </Field>
+                  <Field label="Email">
+                    <Input
+                      type="email"
+                      value={activeClient.email ?? ""}
+                      onChange={(e) => setActiveClient({ email: e.target.value })}
+                      readOnly={clientMode === "existing"}
+                    />
+                  </Field>
+                  <Field label="Téléphone">
+                    <Input
+                      type="tel"
+                      value={activeClient.phone ?? ""}
+                      onChange={(e) => setActiveClient({ phone: e.target.value })}
+                      readOnly={clientMode === "existing"}
+                    />
+                  </Field>
+                  <Field label="Adresse" className="md:col-span-2">
+                    <Input
+                      value={activeClient.address_line1 ?? ""}
+                      onChange={(e) => setActiveClient({ address_line1: e.target.value })}
+                      readOnly={clientMode === "existing"}
+                      placeholder="N° et rue"
+                    />
+                    <Input
+                      className="mt-2"
+                      value={activeClient.address_line2 ?? ""}
+                      onChange={(e) => setActiveClient({ address_line2: e.target.value })}
+                      readOnly={clientMode === "existing"}
+                      placeholder="Complément"
+                    />
+                  </Field>
+                  <Field label="Code postal">
+                    <Input
+                      inputMode="numeric"
+                      value={activeClient.postcode ?? ""}
+                      onChange={(e) => setActiveClient({ postcode: e.target.value })}
+                      readOnly={clientMode === "existing"}
+                    />
+                  </Field>
+                  <Field label="Ville">
+                    <Input
+                      value={activeClient.city ?? ""}
+                      onChange={(e) => setActiveClient({ city: e.target.value })}
+                      readOnly={clientMode === "existing"}
+                    />
+                  </Field>
+                  <Field label="Pays">
+                    <Input
+                      value={activeClient.country ?? "France"}
+                      onChange={(e) => setActiveClient({ country: e.target.value })}
+                      readOnly={clientMode === "existing"}
+                    />
+                  </Field>
+                  {activeClient.client_type === "professionnel" && (
+                    <Field label="SIRET">
+                      <Input
+                        inputMode="numeric"
+                        value={activeClient.siret ?? ""}
+                        onChange={(e) => setActiveClient({ siret: e.target.value })}
+                        readOnly={clientMode === "existing"}
+                        placeholder="14 chiffres"
+                        maxLength={20}
+                      />
+                    </Field>
+                  )}
+                  <Field label="N° TVA intracommunautaire (optionnel)">
+                    <Input
+                      value={activeClient.vat_number ?? ""}
+                      onChange={(e) => setActiveClient({ vat_number: e.target.value })}
+                      readOnly={clientMode === "existing"}
+                      placeholder="FRXX999999999"
+                    />
+                  </Field>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* PROJECT */}
+          <Card className="p-5 space-y-4">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Projet</h2>
+            <Field label="Description du projet">
+              <Textarea
+                rows={3}
+                value={devis.project_description ?? ""}
+                onChange={(e) => update({ project_description: e.target.value })}
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Date de début">
+                <Input
+                  type="date"
+                  value={devis.project_start ?? ""}
+                  onChange={(e) => update({ project_start: e.target.value || null })}
+                />
+              </Field>
+              <Field label="Durée estimée">
+                <Input
+                  value={devis.project_duration ?? ""}
+                  onChange={(e) => update({ project_duration: e.target.value })}
+                  placeholder="ex. 6 mois"
+                />
+              </Field>
             </div>
+          </Card>
+
+          {/* LINE ITEMS */}
+          <Card className="p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Prestations & produits
+              </h2>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setPresetsOpen(true)}>
+                  <Library className="size-4" /> Bibliothèque
+                </Button>
+                <Button size="sm" onClick={() => addLine()}>
+                  <Plus className="size-4" /> Ajouter une ligne
+                </Button>
+              </div>
+            </div>
+
+            {lines.length === 0 && (
+              <div className="text-center text-sm text-muted-foreground py-10 border border-dashed rounded-md">
+                Aucune ligne. Cliquez sur « Ajouter une ligne » pour commencer.
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {lines.map((l, i) => {
+                const net = lineNetHT(l);
+                return (
+                  <div key={i} className="border rounded-lg p-3 space-y-3 bg-card">
+                    <div className="flex items-start gap-2">
+                      <div className="flex flex-col gap-1 pt-1 text-muted-foreground">
+                        <button type="button" onClick={() => moveLine(i, -1)}
+                          className="hover:text-foreground disabled:opacity-30" disabled={i === 0}>
+                          <ArrowUp className="size-3.5" />
+                        </button>
+                        <span className="text-[10px] font-mono text-center">{i + 1}</span>
+                        <button type="button" onClick={() => moveLine(i, 1)}
+                          className="hover:text-foreground disabled:opacity-30" disabled={i === lines.length - 1}>
+                          <ArrowDown className="size-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="flex-1 grid grid-cols-12 gap-2">
+                        <div className="col-span-12 sm:col-span-3">
+                          <Label className="text-[10px] uppercase text-muted-foreground">Type</Label>
+                          <Select value={l.line_type} onValueChange={(v) => updateLine(i, { line_type: v as LineType })}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {LINE_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="col-span-12 sm:col-span-9">
+                          <Label className="text-[10px] uppercase text-muted-foreground">Désignation</Label>
+                          <Input
+                            value={l.description}
+                            onChange={(e) => updateLine(i, { description: e.target.value })}
+                            placeholder="Intitulé de la prestation ou du produit"
+                          />
+                        </div>
+                        <div className="col-span-12">
+                          <Label className="text-[10px] uppercase text-muted-foreground">Description (optionnel)</Label>
+                          <Textarea
+                            rows={2}
+                            value={l.details}
+                            onChange={(e) => updateLine(i, { details: e.target.value })}
+                            placeholder="Détails complémentaires…"
+                          />
+                        </div>
+
+                        <div className="col-span-6 sm:col-span-2">
+                          <Label className="text-[10px] uppercase text-muted-foreground">Quantité</Label>
+                          <Input
+                            type="number" step="0.01" min={0}
+                            className="text-right tabular-nums"
+                            value={l.quantity}
+                            onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })}
+                          />
+                        </div>
+                        <div className="col-span-6 sm:col-span-2">
+                          <Label className="text-[10px] uppercase text-muted-foreground">Unité</Label>
+                          <Select value={l.unit} onValueChange={(v) => updateLine(i, { unit: v })}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="col-span-6 sm:col-span-2">
+                          <Label className="text-[10px] uppercase text-muted-foreground">P.U. HT</Label>
+                          <Input
+                            type="number" step="0.01"
+                            className="text-right tabular-nums"
+                            value={l.unit_price_ht}
+                            onChange={(e) => updateLine(i, { unit_price_ht: Number(e.target.value) })}
+                          />
+                        </div>
+                        <div className="col-span-6 sm:col-span-3">
+                          <Label className="text-[10px] uppercase text-muted-foreground">Remise</Label>
+                          <div className="flex gap-1">
+                            <Input
+                              type="number" step="0.01" min={0}
+                              className="text-right tabular-nums"
+                              value={l.discount_value}
+                              onChange={(e) => updateLine(i, { discount_value: Number(e.target.value) })}
+                            />
+                            <ToggleUnit
+                              value={l.discount_type}
+                              onChange={(v) => updateLine(i, { discount_type: v })}
+                            />
+                          </div>
+                        </div>
+                        <div className="col-span-6 sm:col-span-3">
+                          <Label className="text-[10px] uppercase text-muted-foreground">TVA</Label>
+                          <Select value={String(l.vat_rate)} onValueChange={(v) => updateLine(i, { vat_rate: Number(v) })}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {VAT_RATES.map(r => <SelectItem key={r} value={String(r)}>{r} %</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="Supprimer">
+                        <Trash2 className="size-4 text-destructive" />
+                      </Button>
+                    </div>
+
+                    <div className="flex justify-end text-sm border-t pt-2">
+                      <span className="text-muted-foreground mr-3">Total HT ligne</span>
+                      <span className={`font-semibold tabular-nums ${net < 0 ? "text-destructive" : ""}`}>
+                        {fmtEUR(net)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
+          {/* CONDITIONS & LEGAL */}
+          <Card className="p-5 space-y-4">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Conditions & mentions légales
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Conditions de paiement">
+                <Select
+                  value={devis.payment_terms_preset ?? ""}
+                  onValueChange={(v) => update({ payment_terms_preset: v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="— Choisir —" /></SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_TERMS_PRESETS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <div className="space-y-2">
+                <Label className="text-xs">Mode de paiement</Label>
+                <div className="flex flex-wrap gap-3 pt-1">
+                  {PAYMENT_METHODS.map(m => {
+                    const checked = devis.payment_methods.includes(m);
+                    return (
+                      <label key={m} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(c) => update({
+                            payment_methods: c
+                              ? [...devis.payment_methods, m]
+                              : devis.payment_methods.filter(x => x !== m),
+                          })}
+                        />
+                        {m}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <Field label="Conditions générales / Notes">
+              <Textarea
+                rows={4}
+                value={devis.conditions_notes ?? ""}
+                onChange={(e) => update({ conditions_notes: e.target.value })}
+                placeholder="Conditions particulières, garanties, modalités…"
+              />
+            </Field>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Mentions légales à inclure</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                {LEGAL_MENTIONS.map(m => {
+                  const checked = devis.legal_mentions.includes(m.key);
+                  return (
+                    <label key={m.key} className="flex items-center gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(c) => update({
+                          legal_mentions: c
+                            ? [...devis.legal_mentions, m.key]
+                            : devis.legal_mentions.filter(x => x !== m.key),
+                        })}
+                      />
+                      {m.label}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-3">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Bon pour accord</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Nom du client">
+                  <Input
+                    value={devis.signature_client_name ?? (savedClient?.contact_name ?? savedClient?.name ?? newClient.contact_name ?? newClient.name ?? "")}
+                    onChange={(e) => update({ signature_client_name: e.target.value })}
+                  />
+                </Field>
+                <Field label="Date de signature">
+                  <Input
+                    type="date"
+                    value={devis.signature_date ?? ""}
+                    onChange={(e) => update({ signature_date: e.target.value || null })}
+                  />
+                </Field>
+              </div>
+              <div className="border-2 border-dashed rounded-md h-24 flex items-center justify-center text-xs text-muted-foreground">
+                Espace de signature (apposé sur le PDF)
+              </div>
+            </div>
+
+            <Field label="Notes internes (PDF)">
+              <Textarea
+                rows={2}
+                value={devis.notes ?? ""}
+                onChange={(e) => update({ notes: e.target.value })}
+              />
+            </Field>
+          </Card>
+        </div>
+
+        {/* RIGHT — totals sidebar */}
+        <Card className="p-5 space-y-4 h-fit lg:sticky lg:top-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Récapitulatif</h2>
+
+          <Row k="Total HT (brut)" v={fmtEUR(totals.subtotalHT)} />
+
+          <div className="space-y-2">
+            <Label className="text-xs">Remise globale</Label>
+            <div className="flex gap-1">
+              <Input
+                type="number" step="0.01" min={0}
+                className="text-right tabular-nums"
+                value={devis.global_discount_value}
+                onChange={(e) => update({ global_discount_value: Number(e.target.value) })}
+              />
+              <ToggleUnit
+                value={devis.global_discount_type}
+                onChange={(v) => update({ global_discount_type: v })}
+              />
+            </div>
+            {totals.globalDiscAmt > 0 &&
+              <div className="text-xs text-muted-foreground text-right">
+                − {fmtEUR(totals.globalDiscAmt)}
+              </div>}
           </div>
 
-          <div className="space-y-1.5 pt-4 border-t">
-            <Label className="text-xs">Notes (appear on PDF)</Label>
-            <Textarea rows={3} value={devis.notes ?? ""} onChange={(e) => update({ notes: e.target.value })} />
-          </div>
-        </Card>
+          <Separator />
 
-        <Card className="p-5 space-y-3 h-fit sticky top-4">
-          <h2 className="font-semibold">Totals</h2>
-          <Row k="Subtotal HT" v={fmtEUR(subtotal)} />
-          {vatRate > 0 ? (
-            <Row k={`VAT (${vatRate}%)`} v={fmtEUR(vatAmount)} />
+          <Row k="Total HT net" v={fmtEUR(totals.netAfterDiscount)} />
+
+          {totals.vatByRate.length > 0 ? (
+            <div className="space-y-1">
+              {totals.vatByRate.map(([rate, amt]) => (
+                <Row key={rate} k={`TVA ${rate} %`} v={fmtEUR(amt)} muted />
+              ))}
+              <Row k="Total TVA" v={fmtEUR(totals.totalVAT)} />
+            </div>
           ) : (
-            <p className="text-xs italic text-muted-foreground">TVA non applicable, article 293 B du CGI</p>
+            <p className="text-xs italic text-muted-foreground">
+              TVA non applicable, art. 293 B du CGI
+            </p>
           )}
-          <div className="border-t pt-2">
-            <Row k="Total TTC" v={fmtEUR(totalTtc)} bold />
+
+          <Separator />
+
+          <div className="flex justify-between items-baseline">
+            <span className="font-semibold">Total TTC</span>
+            <span className="text-xl font-bold tabular-nums text-primary">{fmtEUR(totals.totalTTC)}</span>
           </div>
-          <div className="pt-3 border-t space-y-1.5">
-            <Label className="text-xs">Deposit (optional)</Label>
-            <Input type="number" step="0.01" value={devis.deposit_amount ?? ""} onChange={(e) => update({ deposit_amount: e.target.value ? Number(e.target.value) : null })} />
-            {balance !== null && (
-              <div className="text-xs text-muted-foreground pt-1">
-                Balance on completion: <span className="font-medium text-foreground">{fmtEUR(balance)}</span>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label className="text-xs">Acompte demandé</Label>
+            <div className="flex gap-1">
+              <Input
+                type="number" step="0.01" min={0}
+                className="text-right tabular-nums"
+                value={devis.deposit_value}
+                onChange={(e) => update({ deposit_value: Number(e.target.value) })}
+              />
+              <ToggleUnit
+                value={devis.deposit_type}
+                onChange={(v) => update({ deposit_type: v })}
+              />
+            </div>
+            {totals.depositAmount > 0 && (
+              <div className="space-y-1 pt-2">
+                <Row k="Acompte à régler" v={fmtEUR(totals.depositAmount)} muted />
+                <Row k="Solde à la livraison" v={fmtEUR(totals.balance)} muted />
               </div>
             )}
           </div>
+
+          <Separator />
+
+          <Button variant="outline" className="w-full" onClick={() => save("draft")} disabled={saving}>
+            <Save className="size-4" /> Sauvegarder en brouillon
+          </Button>
         </Card>
       </div>
 
+      {/* Preview dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-5xl h-[85vh] p-0">
-          <DialogHeader className="p-4 border-b"><DialogTitle>PDF preview</DialogTitle></DialogHeader>
+          <DialogHeader className="p-4 border-b"><DialogTitle>Aperçu du devis</DialogTitle></DialogHeader>
           <div className="flex-1 h-full">
             {previewUrl && <iframe src={previewUrl} title="PDF" className="w-full h-full border-0" />}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Presets dialog */}
+      <Dialog open={presetsOpen} onOpenChange={setPresetsOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Bibliothèque de prestations</DialogTitle></DialogHeader>
+          <div className="space-y-1 max-h-96 overflow-y-auto">
+            {presets.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                Aucune prestation enregistrée.
+              </p>
+            )}
+            {presets.map(p => (
+              <button
+                key={p.id}
+                onClick={() => addPreset(p)}
+                className="w-full text-left p-3 rounded-md hover:bg-accent border flex justify-between items-center"
+              >
+                <div>
+                  <div className="font-medium text-sm">
+                    {devis.language === "fr" ? p.label_fr : p.label_en}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {devis.language === "fr" ? p.label_en : p.label_fr}
+                  </div>
+                </div>
+                <div className="text-right text-xs text-muted-foreground">
+                  <Badge variant="secondary">{p.default_unit ?? "—"}</Badge>
+                  {p.default_rate != null && <div className="mt-1 tabular-nums">{fmtEUR(Number(p.default_rate))}</div>}
+                </div>
+              </button>
+            ))}
           </div>
         </DialogContent>
       </Dialog>
@@ -386,51 +1220,41 @@ function DevisEditor() {
   );
 }
 
-const Row = ({ k, v, bold }: { k: string; v: string; bold?: boolean }) => (
-  <div className={`flex justify-between text-sm ${bold ? "font-semibold text-base" : ""}`}>
-    <span>{k}</span><span className="tabular-nums">{v}</span>
-  </div>
-);
+// ──────────────────────────────────────────────────────────────────────────────
+// Small UI helpers
+// ──────────────────────────────────────────────────────────────────────────────
 
-function NewClientDialog({ open, setOpen, onCreated }: { open: boolean; setOpen: (b: boolean) => void; onCreated: (c: Client) => void }) {
-  const [name, setName] = useState("");
-  const create = async () => {
-    if (!name.trim()) return;
-    const { data, error } = await supabase.from("clients").insert({ name }).select("id, name").single();
-    if (error) return toast.error(error.message);
-    onCreated(data as Client);
-    setName(""); setOpen(false);
-  };
+function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button variant="outline" size="icon"><UserPlus className="size-4" /></Button></DialogTrigger>
-      <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>Quick add client</DialogTitle></DialogHeader>
-        <Input placeholder="Client name" value={name} onChange={(e) => setName(e.target.value)} />
-        <DialogFooter><Button onClick={create}>Add</Button></DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <div className={`space-y-1.5 ${className ?? ""}`}>
+      <Label className="text-xs">{label}</Label>
+      {children}
+    </div>
   );
 }
 
-function PresetsDialog({ open, setOpen, presets, lang, onPick }: { open: boolean; setOpen: (b: boolean) => void; presets: any[]; lang: "en" | "fr"; onPick: (p: any) => void }) {
+function Row({ k, v, muted, bold }: { k: string; v: string; muted?: boolean; bold?: boolean }) {
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button size="sm" variant="outline"><Library className="size-4" /> Presets</Button></DialogTrigger>
-      <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Service library</DialogTitle></DialogHeader>
-        <div className="space-y-1 max-h-96 overflow-y-auto">
-          {presets.map((p) => (
-            <button key={p.id} onClick={() => onPick(p)} className="w-full text-left p-3 rounded-md hover:bg-accent flex justify-between items-center border">
-              <div>
-                <div className="font-medium text-sm">{lang === "fr" ? p.label_fr : p.label_en}</div>
-                <div className="text-xs text-muted-foreground">{lang === "fr" ? p.label_en : p.label_fr}</div>
-              </div>
-              <Badge variant="secondary">{p.default_unit}</Badge>
-            </button>
-          ))}
-        </div>
-      </DialogContent>
-    </Dialog>
+    <div className={`flex justify-between text-sm ${muted ? "text-muted-foreground" : ""} ${bold ? "font-semibold" : ""}`}>
+      <span>{k}</span>
+      <span className="tabular-nums">{v}</span>
+    </div>
+  );
+}
+
+function ToggleUnit({ value, onChange }: { value: DiscountType; onChange: (v: DiscountType) => void }) {
+  return (
+    <div className="inline-flex rounded-md border bg-background overflow-hidden text-xs shrink-0">
+      <button
+        type="button"
+        className={`px-2 ${value === "percent" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+        onClick={() => onChange("percent")}
+      >%</button>
+      <button
+        type="button"
+        className={`px-2 ${value === "amount" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+        onClick={() => onChange("amount")}
+      >€</button>
+    </div>
   );
 }
