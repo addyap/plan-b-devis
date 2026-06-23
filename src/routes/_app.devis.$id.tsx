@@ -1201,6 +1201,20 @@ function DevisEditor() {
         <Card className="p-5 space-y-4 h-fit lg:sticky lg:top-4">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t("devis.section_summary")}</h2>
 
+          {honorairesHT > 0 && (
+            <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-0.5">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">{t("devis.moe_honoraires_total")}</span>
+                <span className="font-semibold tabular-nums">{fmtEUR(honorairesHT, uiLang)}</span>
+              </div>
+              {budget > 0 && (
+                <div className="text-[11px] text-right text-muted-foreground">
+                  {t("devis.moe_honoraires_pct", { pct: honorairesPct })}
+                </div>
+              )}
+            </div>
+          )}
+
           <Row k={t("devis.summary_gross")} v={fmtEUR(totals.subtotalHT, uiLang)} />
 
           <div className="space-y-2">
