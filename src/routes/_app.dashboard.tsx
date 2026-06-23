@@ -8,7 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { fmtDate, fmtEUR, todayISO, type Locale } from "@/lib/format";
-import { Plus, Search } from "lucide-react";
+import { Download, Plus, Search } from "lucide-react";
+import { toast } from "sonner";
+import { generateDevisPdf, type PdfClient, type PdfDevis, type PdfLine, type PdfProfile } from "@/lib/pdf";
 
 export const Route = createFileRoute("/_app/dashboard")({
   component: Dashboard,
@@ -102,6 +104,57 @@ function Dashboard() {
     refetch();
   };
 
+  const downloadRow = async (devisId: string) => {
+    const t0 = toast.loading("PDF…");
+    try {
+      const [{ data: dev, error: dErr }, { data: lns, error: lErr }, { data: prof, error: pErr }] = await Promise.all([
+        supabase.from("devis").select("*, client:clients(*)").eq("id", devisId).maybeSingle(),
+        supabase.from("devis_lines").select("*").eq("devis_id", devisId).order("position"),
+        supabase.from("business_profile").select("*").limit(1).maybeSingle(),
+      ]);
+      if (dErr || lErr || pErr || !dev || !prof) throw new Error(dErr?.message || lErr?.message || pErr?.message || "Missing data");
+      const pdfDevis: PdfDevis = {
+        devis_number: dev.devis_number,
+        issue_date: dev.issue_date,
+        validity_until: dev.validity_until,
+        language: (dev.language ?? "fr") as PdfDevis["language"],
+        project_description: dev.project_description ?? null,
+        project_start: dev.project_start ?? null,
+        project_duration: dev.project_duration ?? null,
+        subtotal_ht: Number(dev.subtotal_ht ?? 0),
+        vat_amount: Number(dev.vat_amount ?? 0),
+        total_ttc: Number(dev.total_ttc ?? 0),
+        deposit_amount: dev.deposit_amount != null ? Number(dev.deposit_amount) : null,
+        notes: dev.notes ?? null,
+      };
+      const pdfLines: PdfLine[] = (lns ?? []).map((l: any) => ({
+        description: l.description,
+        quantity: Number(l.quantity ?? 0),
+        unit: l.unit ?? null,
+        unit_price_ht: Number(l.unit_price_ht ?? 0),
+        line_total_ht: Number(l.line_total_ht ?? 0),
+      }));
+      const pdfClient: PdfClient = dev.client
+        ? {
+            name: dev.client.name,
+            contact_name: dev.client.contact_name ?? null,
+            address_line1: dev.client.address_line1 ?? null,
+            address_line2: dev.client.address_line2 ?? null,
+            postcode: dev.client.postcode ?? null,
+            city: dev.client.city ?? null,
+            country: dev.client.country ?? null,
+            email: dev.client.email ?? null,
+            phone: dev.client.phone ?? null,
+          }
+        : null;
+      const doc = await generateDevisPdf(pdfDevis, pdfLines, prof as PdfProfile, pdfClient);
+      doc.save(`${dev.devis_number}.pdf`);
+      toast.success("PDF", { id: t0 });
+    } catch (e) {
+      toast.error(`PDF: ${(e as Error).message}`, { id: t0 });
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -153,11 +206,12 @@ function Dashboard() {
               <th className="text-left px-4 py-3">{t("dashboard.col_validity")}</th>
               <th className="text-right px-4 py-3">{t("dashboard.col_total")}</th>
               <th className="text-left px-4 py-3">{t("dashboard.col_status")}</th>
+              <th className="px-4 py-3 w-12"></th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={6} className="text-center py-12 text-muted-foreground">{t("dashboard.empty")}</td></tr>
+              <tr><td colSpan={7} className="text-center py-12 text-muted-foreground">{t("dashboard.empty")}</td></tr>
             )}
             {filtered.map((d) => (
               <tr key={d.id} className="border-t hover:bg-muted/30 cursor-pointer" onClick={() => navigate({ to: "/devis/$id", params: { id: d.id } })}>
@@ -170,6 +224,17 @@ function Dashboard() {
                 <td className="px-4 py-3 text-right tabular-nums">{fmtEUR(Number(d.total_ttc), lang)}</td>
                 <td className="px-4 py-3">
                   <Badge className={STATUS_STYLES[d.status]} variant="secondary">{t(`status.${d.status}`)}</Badge>
+                </td>
+                <td className="px-2 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t("devis.pdf")}
+                    title={t("devis.pdf")}
+                    onClick={() => downloadRow(d.id)}
+                  >
+                    <Download className="size-4" />
+                  </Button>
                 </td>
               </tr>
             ))}
