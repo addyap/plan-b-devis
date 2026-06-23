@@ -25,9 +25,17 @@ export const Route = createFileRoute("/_app/devis/$id")({
   component: DevisEditor,
 });
 
-type LineType = "produit" | "prestation" | "forfait" | "remise";
+type LineType = "produit" | "prestation" | "forfait" | "moe" | "remise";
 type DiscountType = "percent" | "amount";
+type PricingMode = "amount" | "percent";
 type Status = "draft" | "sent" | "accepted" | "declined" | "expired";
+
+type ScheduleRow = {
+  label: string;
+  mode: DiscountType;     // percent of total TTC, or fixed € amount
+  value: number;
+  milestone: string;
+};
 
 type Line = {
   id?: string;
@@ -41,6 +49,9 @@ type Line = {
   discount_value: number;
   vat_rate: number;
   sort_order: number;
+  mission_code: string | null;
+  pricing_mode: PricingMode;
+  percent_of_budget: number;
 };
 
 type Devis = {
@@ -67,6 +78,18 @@ type Devis = {
   signature_client_name: string | null;
   signature_date: string | null;
   sent_at: string | null;
+  // MOE
+  project_name: string | null;
+  site_address_line1: string | null;
+  site_address_line2: string | null;
+  site_postcode: string | null;
+  site_city: string | null;
+  site_country: string | null;
+  operation_type: string | null;
+  surface_m2: number | null;
+  works_budget_ht: number | null;
+  mission_phases: string[];
+  payment_schedule: ScheduleRow[];
 };
 
 type ClientRow = {
@@ -91,11 +114,23 @@ type ClientDraft = Omit<ClientRow, "id">;
 const UNIT_KEYS = ["unite", "heure", "jour", "m2", "m3", "ml", "forfait", "lot"] as const;
 const VAT_RATES = [0, 5.5, 10, 20] as const;
 const VALIDITY_OPTIONS = [15, 30, 45, 60, 90] as const;
-const LINE_TYPES: LineType[] = ["produit", "prestation", "forfait", "remise"];
+const LINE_TYPES: LineType[] = ["produit", "prestation", "forfait", "moe", "remise"];
 const STATUSES: Status[] = ["draft", "sent", "accepted", "declined", "expired"];
 const PAYMENT_TERM_KEYS = ["cash", "30d", "5050", "custom"] as const;
 const PAYMENT_METHOD_KEYS = ["transfer", "check", "card", "cash"] as const;
 const LEGAL_MENTION_KEYS = ["free", "vat293b", "late", "discount"] as const;
+const OPERATION_KEYS = ["neuf", "renov", "extension", "reamenagement", "interieur", "autre"] as const;
+const MISSION_CODES = ["ESQ", "APS", "APD", "PRO", "ACT", "VISA", "DET", "AOR"] as const;
+const MISSION_LABELS: Record<string, { fr: string; en: string }> = {
+  ESQ: { fr: "Esquisse", en: "Preliminary sketch" },
+  APS: { fr: "Avant-Projet Sommaire", en: "Outline design" },
+  APD: { fr: "Avant-Projet Définitif", en: "Detailed design" },
+  PRO: { fr: "Projet", en: "Project design" },
+  ACT: { fr: "Assistance Contrats de Travaux", en: "Tender assistance" },
+  VISA: { fr: "Visa des études d'exécution", en: "Execution studies review" },
+  DET: { fr: "Direction de l'Exécution des Travaux", en: "Works supervision" },
+  AOR: { fr: "Assistance aux Opérations de Réception", en: "Handover assistance" },
+};
 
 const emptyClient = (): ClientDraft => ({
   name: "",
