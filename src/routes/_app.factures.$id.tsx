@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Download, Eye, Mail } from "lucide-react";
-import { fmtEUR } from "@/lib/format";
+import { fmtEUR, fmtDateTime, type Locale } from "@/lib/format";
 import { toast } from "sonner";
 import { generateFacturePdf, pdfToBase64, type PdfProfile, type PdfClient, type PdfFacture, type PdfLine } from "@/lib/pdf";
 
@@ -31,6 +32,8 @@ type Facture = {
 type Line = { id?: string; description: string; quantity: number; unit: string; unit_price_ht: number; line_total_ht: number; sort_order: number };
 
 function FactureEditor() {
+  const { t, i18n } = useTranslation();
+  const uiLang: Locale = i18n.resolvedLanguage?.startsWith("en") ? "en" : "fr";
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const [fac, setFac] = useState<Facture | null>(null);
@@ -67,7 +70,7 @@ function FactureEditor() {
   const vatAmount = +(subtotal * (vatRate / 100)).toFixed(2);
   const totalTtc = +(subtotal + vatAmount).toFixed(2);
 
-  if (!fac || !profile) return <div className="text-muted-foreground">Loading…</div>;
+  if (!fac || !profile) return <div className="text-muted-foreground">{t("common.loading")}</div>;
 
   const update = (patch: Partial<Facture>) => setFac({ ...fac, ...patch });
 
@@ -82,7 +85,7 @@ function FactureEditor() {
     if (error) { toast.error(error.message); setSaving(false); return false; }
     if (newStatus) setFac({ ...fac, status: newStatus });
     setSaving(false);
-    toast.success("Saved");
+    toast.success(t("common.saved"));
     return true;
   };
 
@@ -108,8 +111,8 @@ function FactureEditor() {
   };
 
   const send = async () => {
-    if (!client?.email) return toast.error("Client has no email.");
-    if (!profile.sender_email) return toast.error("Set a sender email in Settings first.");
+    if (!client?.email) return toast.error(t("factures.client_no_email"));
+    if (!profile.sender_email) return toast.error(t("factures.set_sender"));
     setSending(true);
     try {
       await save();
@@ -119,14 +122,14 @@ function FactureEditor() {
         body: { facture_id: id, to: client.email, pdf_base64: b64, filename: `${fac.facture_number}.pdf` },
       });
       if (error || (data && (data as any).error)) {
-        const msg = error?.message || (data as any)?.error || "Send failed";
+        const msg = error?.message || (data as any)?.error || t("factures.send_failed");
         await supabase.from("factures").update({ last_email_error: msg }).eq("id", id);
-        toast.error(`Email failed: ${msg}`);
+        toast.error(`${t("factures.send_failed")}: ${msg}`);
       } else {
         const now = new Date().toISOString();
         await supabase.from("factures").update({ sent_at: now, status: "sent", last_email_error: null }).eq("id", id);
         setFac({ ...fac, sent_at: now, status: "sent" });
-        toast.success(`Sent to ${client.email}`);
+        toast.success(t("factures.sent_to", { email: client.email }));
       }
     } finally { setSending(false); }
   };
@@ -135,66 +138,66 @@ function FactureEditor() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-4 justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate({ to: "/factures" })}><ArrowLeft className="size-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => navigate({ to: "/factures" })} aria-label={t("common.back")}><ArrowLeft className="size-4" /></Button>
           <div>
-            <div className="text-xs text-muted-foreground uppercase tracking-wide">Facture</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wide">{t("factures.title")}</div>
             <h1 className="text-2xl font-semibold font-mono">{fac.facture_number}</h1>
           </div>
-          <Badge variant="secondary" className="ml-2">{fac.status}</Badge>
-          {fac.sent_at && <span className="text-xs text-muted-foreground">Sent {new Date(fac.sent_at).toLocaleString()}</span>}
+          <Badge variant="secondary" className="ml-2">{t(`status.${fac.status}`)}</Badge>
+          {fac.sent_at && <span className="text-xs text-muted-foreground">{t("factures.sent_at", { when: fmtDateTime(fac.sent_at, uiLang) })}</span>}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={preview}><Eye className="size-4" /> Preview</Button>
-          <Button variant="outline" onClick={download}><Download className="size-4" /> PDF</Button>
-          <Button variant="outline" onClick={send} disabled={sending}><Mail className="size-4" /> {sending ? "Sending…" : "Send to client"}</Button>
-          <Button variant="outline" onClick={() => save("paid")} disabled={saving}>Mark paid</Button>
-          <Button onClick={() => save()} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+          <Button variant="outline" onClick={preview}><Eye className="size-4" /> {t("factures.preview")}</Button>
+          <Button variant="outline" onClick={download}><Download className="size-4" /> {t("factures.pdf")}</Button>
+          <Button variant="outline" onClick={send} disabled={sending}><Mail className="size-4" /> {sending ? t("factures.sending") : t("factures.send")}</Button>
+          <Button variant="outline" onClick={() => save("paid")} disabled={saving}>{t("factures.mark_paid")}</Button>
+          <Button onClick={() => save()} disabled={saving}>{saving ? t("common.saving") : t("common.save")}</Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="p-5 space-y-4 lg:col-span-2">
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label className="text-xs">Issue date</Label><Input type="date" value={fac.issue_date} onChange={(e) => update({ issue_date: e.target.value })} /></div>
-            <div className="space-y-1.5"><Label className="text-xs">Due date</Label><Input type="date" value={fac.due_date} onChange={(e) => update({ due_date: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label className="text-xs">{t("factures.issue_date")}</Label><Input type="date" value={fac.issue_date} onChange={(e) => update({ issue_date: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label className="text-xs">{t("factures.due_date")}</Label><Input type="date" value={fac.due_date} onChange={(e) => update({ due_date: e.target.value })} /></div>
           </div>
-          <div className="space-y-1.5"><Label className="text-xs">Project description</Label><Textarea rows={3} value={fac.project_description ?? ""} onChange={(e) => update({ project_description: e.target.value })} /></div>
+          <div className="space-y-1.5"><Label className="text-xs">{t("factures.project_description")}</Label><Textarea rows={3} value={fac.project_description ?? ""} onChange={(e) => update({ project_description: e.target.value })} /></div>
 
           <div className="pt-4 border-t">
-            <h2 className="font-semibold mb-3">Line items</h2>
+            <h2 className="font-semibold mb-3">{t("factures.line_items")}</h2>
             <div className="space-y-2">
               {lines.map((l, i) => (
                 <div key={i} className="grid grid-cols-12 gap-2 items-start border rounded-md p-2">
                   <div className="col-span-6 text-sm">{l.description}</div>
                   <div className="col-span-1 text-right text-sm tabular-nums">{l.quantity}</div>
                   <div className="col-span-1 text-center text-sm">{l.unit}</div>
-                  <div className="col-span-2 text-right text-sm tabular-nums">{fmtEUR(l.unit_price_ht)}</div>
-                  <div className="col-span-2 text-right text-sm tabular-nums font-medium">{fmtEUR(l.line_total_ht)}</div>
+                  <div className="col-span-2 text-right text-sm tabular-nums">{fmtEUR(l.unit_price_ht, uiLang)}</div>
+                  <div className="col-span-2 text-right text-sm tabular-nums font-medium">{fmtEUR(l.line_total_ht, uiLang)}</div>
                 </div>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground mt-3">Lines are copied from the source devis at conversion. To edit, modify the source devis and reconvert.</p>
+            <p className="text-xs text-muted-foreground mt-3">{t("factures.lines_note")}</p>
           </div>
 
           <div className="space-y-1.5 pt-4 border-t">
-            <Label className="text-xs">Notes</Label>
+            <Label className="text-xs">{t("factures.notes")}</Label>
             <Textarea rows={3} value={fac.notes ?? ""} onChange={(e) => update({ notes: e.target.value })} />
           </div>
         </Card>
 
         <Card className="p-5 space-y-3 h-fit sticky top-4">
-          <h2 className="font-semibold">Totals</h2>
-          <Row k="Subtotal HT" v={fmtEUR(subtotal)} />
-          {vatRate > 0 ? <Row k={`VAT (${vatRate}%)`} v={fmtEUR(vatAmount)} /> : (
+          <h2 className="font-semibold">{t("factures.totals")}</h2>
+          <Row k={t("factures.subtotal_ht")} v={fmtEUR(subtotal, uiLang)} />
+          {vatRate > 0 ? <Row k={`${t("factures.vat")} (${vatRate}%)`} v={fmtEUR(vatAmount, uiLang)} /> : (
             <p className="text-xs italic text-muted-foreground">TVA non applicable, article 293 B du CGI</p>
           )}
-          <div className="border-t pt-2"><Row k="Total TTC" v={fmtEUR(totalTtc)} bold /></div>
+          <div className="border-t pt-2"><Row k={t("factures.total_ttc")} v={fmtEUR(totalTtc, uiLang)} bold /></div>
         </Card>
       </div>
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-5xl h-[85vh] p-0">
-          <DialogHeader className="p-4 border-b"><DialogTitle>PDF preview</DialogTitle></DialogHeader>
+          <DialogHeader className="p-4 border-b"><DialogTitle>{t("factures.preview_title")}</DialogTitle></DialogHeader>
           <div className="flex-1 h-full">{previewUrl && <iframe src={previewUrl} title="PDF" className="w-full h-full border-0" />}</div>
         </DialogContent>
       </Dialog>

@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,17 +17,13 @@ import {
   ArrowDown, ArrowLeft, ArrowUp, Download, Eye, FileCheck2,
   Mail, Plus, Save, Trash2, UserPlus, Library,
 } from "lucide-react";
-import { fmtEUR, addDays, todayISO } from "@/lib/format";
+import { fmtEUR, fmtDate, addDays, todayISO, type Locale } from "@/lib/format";
 import { toast } from "sonner";
 import { generateDevisPdf, pdfToBase64, type PdfProfile, type PdfClient, type PdfDevis, type PdfLine } from "@/lib/pdf";
 
 export const Route = createFileRoute("/_app/devis/$id")({
   component: DevisEditor,
 });
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Types
-// ──────────────────────────────────────────────────────────────────────────────
 
 type LineType = "produit" | "prestation" | "forfait" | "remise";
 type DiscountType = "percent" | "amount";
@@ -58,7 +55,6 @@ type Devis = {
   project_start: string | null;
   project_duration: string | null;
   notes: string | null;
-  // extended
   global_discount_type: DiscountType;
   global_discount_value: number;
   deposit_type: DiscountType;
@@ -91,36 +87,15 @@ type ClientRow = {
 
 type ClientDraft = Omit<ClientRow, "id">;
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Constants
-// ──────────────────────────────────────────────────────────────────────────────
-
-const UNITS = ["unité", "heure", "jour", "m²", "m³", "ml", "forfait", "lot"] as const;
+// Unit keys map to translation under units.*
+const UNIT_KEYS = ["unite", "heure", "jour", "m2", "m3", "ml", "forfait", "lot"] as const;
 const VAT_RATES = [0, 5.5, 10, 20] as const;
 const VALIDITY_OPTIONS = [15, 30, 45, 60, 90] as const;
-const LINE_TYPES: { value: LineType; label: string }[] = [
-  { value: "produit", label: "Produit" },
-  { value: "prestation", label: "Prestation" },
-  { value: "forfait", label: "Forfait" },
-  { value: "remise", label: "Remise" },
-];
-const STATUS_LABELS: Record<Status, string> = {
-  draft: "Brouillon", sent: "Envoyé", accepted: "Accepté",
-  declined: "Refusé", expired: "Expiré",
-};
-const PAYMENT_TERMS_PRESETS = [
-  "Comptant",
-  "30 jours",
-  "50% à la commande / solde à la livraison",
-  "Échéancier personnalisé",
-];
-const PAYMENT_METHODS = ["Virement", "Chèque", "Carte", "Espèces"];
-const LEGAL_MENTIONS = [
-  { key: "free", label: "Devis gratuit" },
-  { key: "vat293b", label: "TVA non applicable, art. 293 B du CGI" },
-  { key: "late", label: "Pénalités de retard" },
-  { key: "discount", label: "Escompte pour paiement anticipé" },
-];
+const LINE_TYPES: LineType[] = ["produit", "prestation", "forfait", "remise"];
+const STATUSES: Status[] = ["draft", "sent", "accepted", "declined", "expired"];
+const PAYMENT_TERM_KEYS = ["cash", "30d", "5050", "custom"] as const;
+const PAYMENT_METHOD_KEYS = ["transfer", "check", "card", "cash"] as const;
+const LEGAL_MENTION_KEYS = ["free", "vat293b", "late", "discount"] as const;
 
 const emptyClient = (): ClientDraft => ({
   name: "",
@@ -137,10 +112,6 @@ const emptyClient = (): ClientDraft => ({
   vat_number: "",
 });
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Totals math
-// ──────────────────────────────────────────────────────────────────────────────
-
 function lineNetHT(l: Pick<Line, "quantity" | "unit_price_ht" | "discount_type" | "discount_value" | "line_type">) {
   const gross = Number(l.quantity || 0) * Number(l.unit_price_ht || 0);
   const sign = l.line_type === "remise" ? -1 : 1;
@@ -156,7 +127,6 @@ function computeTotals(lines: Line[], gType: DiscountType, gValue: number, depTy
   const linesNet = lines.map(l => ({ vat: Number(l.vat_rate || 0), net: lineNetHT(l) }));
   const subtotalHT = +linesNet.reduce((s, x) => s + x.net, 0).toFixed(2);
 
-  // Global discount applied proportionally to positive net only.
   const positiveNet = linesNet.reduce((s, x) => (x.net > 0 ? s + x.net : s), 0);
   const globalDiscAmt = positiveNet === 0 ? 0 :
     gType === "percent"
@@ -170,11 +140,8 @@ function computeTotals(lines: Line[], gType: DiscountType, gValue: number, depTy
   for (const x of linesNet) {
     const adjusted = x.net > 0 ? +(x.net * factor).toFixed(2) : x.net;
     netAfter += adjusted;
-    const vat = +(Math.max(0, adjusted) * (x.vat / 100)).toFixed(2);
-    // negative lines (remise) still affect their own rate
     const vatLine = +(adjusted * (x.vat / 100)).toFixed(2);
     vatByRate.set(x.vat, +((vatByRate.get(x.vat) ?? 0) + vatLine).toFixed(2));
-    void vat;
   }
   netAfter = +netAfter.toFixed(2);
   const totalVAT = +Array.from(vatByRate.values()).reduce((s, v) => s + v, 0).toFixed(2);
@@ -198,11 +165,9 @@ function computeTotals(lines: Line[], gType: DiscountType, gValue: number, depTy
   };
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Component
-// ──────────────────────────────────────────────────────────────────────────────
-
 function DevisEditor() {
+  const { t, i18n } = useTranslation();
+  const uiLang: Locale = i18n.resolvedLanguage?.startsWith("en") ? "en" : "fr";
   const { id } = Route.useParams();
   const navigate = useNavigate();
 
@@ -223,7 +188,6 @@ function DevisEditor() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [presetsOpen, setPresetsOpen] = useState(false);
 
-  // ── load ────────────────────────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
       const [d, l, c, p, pr] = await Promise.all([
@@ -281,7 +245,6 @@ function DevisEditor() {
     })();
   }, [id]);
 
-  // Refresh full client row when selected
   useEffect(() => {
     if (!devis?.client_id) { setSavedClient(null); return; }
     const found = clients.find(c => c.id === devis.client_id);
@@ -294,7 +257,6 @@ function DevisEditor() {
 
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
 
-  // ── totals ──────────────────────────────────────────────────────────────────
   const totals = useMemo(
     () => devis
       ? computeTotals(lines, devis.global_discount_type, devis.global_discount_value, devis.deposit_type, devis.deposit_value)
@@ -302,11 +264,10 @@ function DevisEditor() {
     [lines, devis?.global_discount_type, devis?.global_discount_value, devis?.deposit_type, devis?.deposit_value]
   );
 
-  if (!devis || !profile || !totals) return <div className="text-muted-foreground">Chargement…</div>;
+  if (!devis || !profile || !totals) return <div className="text-muted-foreground">{t("common.loading")}</div>;
 
   const update = (patch: Partial<Devis>) => setDevis({ ...devis, ...patch });
 
-  // ── line helpers ────────────────────────────────────────────────────────────
   const addLine = (init?: Partial<Line>) => setLines([...lines, {
     line_type: "prestation",
     description: "",
@@ -342,15 +303,14 @@ function DevisEditor() {
     setPresetsOpen(false);
   };
 
-  // ── save flow ───────────────────────────────────────────────────────────────
   const validate = (): string | null => {
-    if (clientMode === "existing" && !devis.client_id) return "Sélectionnez un client ou créez-en un.";
-    if (clientMode === "new" && !newClient.name.trim()) return "Nom du nouveau client requis.";
-    if (!devis.issue_date) return "Date d'émission requise.";
-    if (!devis.validity_until) return "Date de validité requise.";
-    if (lines.length === 0) return "Ajoutez au moins une ligne.";
+    if (clientMode === "existing" && !devis.client_id) return t("devis.v_select_client");
+    if (clientMode === "new" && !newClient.name.trim()) return t("devis.v_new_name");
+    if (!devis.issue_date) return t("devis.v_issue");
+    if (!devis.validity_until) return t("devis.v_validity");
+    if (lines.length === 0) return t("devis.v_one_line");
     for (const [i, l] of lines.entries()) {
-      if (!l.description.trim()) return `Ligne ${i + 1} : désignation requise.`;
+      if (!l.description.trim()) return t("devis.v_line_label", { n: i + 1 });
     }
     return null;
   };
@@ -429,14 +389,13 @@ function DevisEditor() {
       if (newStatus || clientId !== devis.client_id) {
         setDevis({ ...devis, status: newStatus ?? devis.status, client_id: clientId });
       }
-      toast.success("Enregistré");
+      toast.success(t("common.saved"));
       return true;
     } finally {
       setSaving(false);
     }
   };
 
-  // ── PDF / send ──────────────────────────────────────────────────────────────
   const pdfDevis: PdfDevis = {
     devis_number: devis.devis_number,
     issue_date: devis.issue_date,
@@ -486,13 +445,13 @@ function DevisEditor() {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(URL.createObjectURL(blob));
       setPreviewOpen(true);
-    } catch (e) { toast.error(`Aperçu: ${(e as Error).message}`); }
+    } catch (e) { toast.error(`${t("devis.preview")}: ${(e as Error).message}`); }
   };
 
   const sendToClient = async () => {
     const email = savedClient?.email || newClient.email;
-    if (!email) return toast.error("Le client n'a pas d'adresse email.");
-    if (!profile.sender_email) return toast.error("Configurez une adresse expéditeur dans Réglages.");
+    if (!email) return toast.error(t("devis.email_no_email"));
+    if (!profile.sender_email) return toast.error(t("devis.email_no_sender"));
     setSending(true);
     try {
       const ok = await save();
@@ -503,16 +462,16 @@ function DevisEditor() {
         body: { devis_id: id, to: email, pdf_base64: b64, filename: `${devis.devis_number}.pdf` },
       });
       if (error || (data && (data as any).error)) {
-        const msg = error?.message || (data as any)?.error || "Envoi échoué";
+        const msg = error?.message || (data as any)?.error || t("factures.send_failed");
         await supabase.from("devis").update({ last_email_error: msg }).eq("id", id);
         toast.error(`Email: ${msg}`);
       } else {
         const now = new Date().toISOString();
         await supabase.from("devis").update({ sent_at: now, status: "sent", last_email_error: null }).eq("id", id);
         setDevis({ ...devis, sent_at: now, status: "sent" });
-        toast.success(`Envoyé à ${email}`);
+        toast.success(t("devis.email_sent", { email }));
       }
-    } catch (e) { toast.error(`Envoi: ${(e as Error).message}`); }
+    } catch (e) { toast.error(`${t("devis.send")}: ${(e as Error).message}`); }
     finally { setSending(false); }
   };
 
@@ -522,7 +481,7 @@ function DevisEditor() {
       const ok = await save();
       if (!ok) return;
       const { data: num, error: nErr } = await supabase.rpc("next_facture_number");
-      if (nErr || !num) throw new Error(nErr?.message || "Numéro indisponible");
+      if (nErr || !num) throw new Error(nErr?.message || t("devis.convert_error"));
       const today = todayISO();
       const { data: fac, error: fErr } = await supabase.from("factures").insert({
         facture_number: num as string,
@@ -540,7 +499,7 @@ function DevisEditor() {
         deposit_amount: totals.depositAmount || null,
         notes: devis.notes,
       }).select("id").single();
-      if (fErr || !fac) throw new Error(fErr?.message || "Insertion échouée");
+      if (fErr || !fac) throw new Error(fErr?.message || "Insertion failed");
       if (lines.length) {
         await supabase.from("facture_lines").insert(lines.map((l, i) => ({
           facture_id: fac.id,
@@ -552,13 +511,12 @@ function DevisEditor() {
           sort_order: i,
         })));
       }
-      toast.success(`Facture ${num} créée`);
+      toast.success(t("devis.convert_done", { n: num }));
       navigate({ to: "/factures/$id", params: { id: fac.id } });
     } catch (e) { toast.error((e as Error).message); }
     finally { setConverting(false); }
   };
 
-  // ── render ──────────────────────────────────────────────────────────────────
   const activeClient: ClientDraft = clientMode === "new"
     ? newClient
     : (savedClient ? { ...savedClient } : emptyClient());
@@ -574,47 +532,45 @@ function DevisEditor() {
 
   return (
     <div className="space-y-6 max-w-7xl">
-      {/* Top bar */}
       <div className="flex flex-wrap items-center gap-3 justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate({ to: "/dashboard" })} aria-label="Retour">
+          <Button variant="ghost" size="icon" onClick={() => navigate({ to: "/dashboard" })} aria-label={t("devis.back")}>
             <ArrowLeft className="size-4" />
           </Button>
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Devis</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("devis.label")}</div>
             <h1 className="text-2xl font-semibold font-mono">{devis.devis_number}</h1>
           </div>
-          <Badge variant="secondary" className="ml-2">{STATUS_LABELS[devis.status]}</Badge>
+          <Badge variant="secondary" className="ml-2">{t(`status.${devis.status}`)}</Badge>
           {devis.sent_at && (
             <span className="text-xs text-muted-foreground">
-              Envoyé le {new Date(devis.sent_at).toLocaleDateString("fr-FR")}
+              {t("devis.sent_at", { date: fmtDate(devis.sent_at, uiLang) })}
             </span>
           )}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={openPreview}><Eye className="size-4" /> Aperçu</Button>
-          <Button variant="outline" onClick={downloadPdf}><Download className="size-4" /> PDF</Button>
+          <Button variant="outline" onClick={openPreview}><Eye className="size-4" /> {t("devis.preview")}</Button>
+          <Button variant="outline" onClick={downloadPdf}><Download className="size-4" /> {t("devis.pdf")}</Button>
           <Button variant="outline" onClick={sendToClient} disabled={sending}>
-            <Mail className="size-4" /> {sending ? "Envoi…" : "Envoyer"}
+            <Mail className="size-4" /> {sending ? t("devis.sending") : t("devis.send")}
           </Button>
           <Button variant="outline" onClick={convertToFacture} disabled={converting}>
-            <FileCheck2 className="size-4" /> {converting ? "…" : "Convertir en facture"}
+            <FileCheck2 className="size-4" /> {converting ? "…" : t("devis.convert")}
           </Button>
           <Button onClick={() => save()} disabled={saving}>
-            <Save className="size-4" /> {saving ? "Enregistrement…" : "Enregistrer"}
+            <Save className="size-4" /> {saving ? t("common.saving") : t("devis.save")}
           </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* LEFT — main form */}
         <div className="lg:col-span-2 space-y-6">
 
           {/* HEADER / META */}
           <Card className="p-5 space-y-4">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">En-tête</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t("devis.section_header")}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="N° de devis">
+              <Field label={t("devis.number")}>
                 <Input
                   value={devis.devis_number}
                   onChange={(e) => update({ devis_number: e.target.value })}
@@ -622,16 +578,15 @@ function DevisEditor() {
                   placeholder="DEV-2026-0001"
                 />
               </Field>
-              <Field label="Statut">
+              <Field label={t("devis.status")}>
                 <Select value={devis.status} onValueChange={(v) => update({ status: v as Status })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {(Object.keys(STATUS_LABELS) as Status[]).map(s =>
-                      <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>)}
+                    {STATUSES.map(s => <SelectItem key={s} value={s}>{t(`status.${s}`)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Date d'émission">
+              <Field label={t("devis.issue_date")}>
                 <Input
                   type="date"
                   value={devis.issue_date}
@@ -641,30 +596,30 @@ function DevisEditor() {
                   }}
                 />
               </Field>
-              <Field label="Date de validité">
+              <Field label={t("devis.validity_until")}>
                 <Input
                   type="date"
                   value={devis.validity_until}
                   onChange={(e) => update({ validity_until: e.target.value })}
                 />
               </Field>
-              <Field label="Validité de l'offre">
+              <Field label={t("devis.validity_offer")}>
                 <Select
                   value={String(validityDays)}
                   onValueChange={(v) => update({ validity_until: addDays(devis.issue_date, Number(v)) })}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {VALIDITY_OPTIONS.map(d => <SelectItem key={d} value={String(d)}>{d} jours</SelectItem>)}
+                    {VALIDITY_OPTIONS.map(d => <SelectItem key={d} value={String(d)}>{t("devis.validity_days", { n: d })}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Langue">
+              <Field label={t("devis.doc_language")} help={t("devis.doc_language_help")}>
                 <Select value={devis.language} onValueChange={(v) => update({ language: v as "fr" | "en" })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="fr">Français</SelectItem>
-                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="fr">🇫🇷 Français</SelectItem>
+                    <SelectItem value="en">🇬🇧 English</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>
@@ -674,31 +629,25 @@ function DevisEditor() {
           {/* CLIENT */}
           <Card className="p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Client</h2>
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t("devis.section_client")}</h2>
               <div className="flex items-center gap-1 text-xs">
-                <Button
-                  variant={clientMode === "existing" ? "secondary" : "ghost"}
-                  size="sm"
-                  onClick={() => setClientMode("existing")}
-                >Existant</Button>
-                <Button
-                  variant={clientMode === "new" ? "secondary" : "ghost"}
-                  size="sm"
-                  onClick={() => { setClientMode("new"); update({ client_id: null }); }}
-                >
-                  <UserPlus className="size-3.5" /> Nouveau client
+                <Button variant={clientMode === "existing" ? "secondary" : "ghost"} size="sm" onClick={() => setClientMode("existing")}>
+                  {t("devis.client_existing")}
+                </Button>
+                <Button variant={clientMode === "new" ? "secondary" : "ghost"} size="sm" onClick={() => { setClientMode("new"); update({ client_id: null }); }}>
+                  <UserPlus className="size-3.5" /> {t("devis.client_new")}
                 </Button>
               </div>
             </div>
 
             {clientMode === "existing" ? (
-              <Field label="Sélectionner un client">
+              <Field label={t("devis.client_select")}>
                 <Select value={devis.client_id ?? ""} onValueChange={(v) => update({ client_id: v || null })}>
-                  <SelectTrigger><SelectValue placeholder="— Choisir —" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("devis.client_choose")} /></SelectTrigger>
                   <SelectContent>
                     {clients.map(c => (
                       <SelectItem key={c.id} value={c.id}>
-                        {c.name} {c.client_type === "particulier" ? "·  particulier" : ""}
+                        {c.name} {c.client_type === "particulier" ? `·  ${t("devis.client_particulier").toLowerCase()}` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -706,11 +655,10 @@ function DevisEditor() {
               </Field>
             ) : null}
 
-            {/* Editable / read-only block depending on mode */}
             {(clientMode === "new" || savedClient) && (
               <div className={`space-y-4 ${clientMode === "existing" ? "opacity-90" : ""}`}>
                 <div className="space-y-2">
-                  <Label className="text-xs">Type</Label>
+                  <Label className="text-xs">{t("devis.client_type")}</Label>
                   <RadioGroup
                     value={activeClient.client_type}
                     onValueChange={(v) => setActiveClient({ client_type: v as "particulier" | "professionnel" })}
@@ -718,101 +666,47 @@ function DevisEditor() {
                     disabled={clientMode === "existing"}
                   >
                     <label className="flex items-center gap-2 text-sm">
-                      <RadioGroupItem value="particulier" /> Particulier
+                      <RadioGroupItem value="particulier" /> {t("devis.client_particulier")}
                     </label>
                     <label className="flex items-center gap-2 text-sm">
-                      <RadioGroupItem value="professionnel" /> Professionnel
+                      <RadioGroupItem value="professionnel" /> {t("devis.client_pro")}
                     </label>
                   </RadioGroup>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Field label={activeClient.client_type === "professionnel" ? "Raison sociale" : "Nom"}>
-                    <Input
-                      value={activeClient.name}
-                      onChange={(e) => setActiveClient({ name: e.target.value })}
-                      readOnly={clientMode === "existing"}
-                    />
+                  <Field label={activeClient.client_type === "professionnel" ? t("devis.client_company") : t("devis.client_name")}>
+                    <Input value={activeClient.name} onChange={(e) => setActiveClient({ name: e.target.value })} readOnly={clientMode === "existing"} />
                   </Field>
-                  <Field label="Contact">
-                    <Input
-                      value={activeClient.contact_name ?? ""}
-                      onChange={(e) => setActiveClient({ contact_name: e.target.value })}
-                      readOnly={clientMode === "existing"}
-                    />
+                  <Field label={t("devis.client_contact")}>
+                    <Input value={activeClient.contact_name ?? ""} onChange={(e) => setActiveClient({ contact_name: e.target.value })} readOnly={clientMode === "existing"} />
                   </Field>
-                  <Field label="Email">
-                    <Input
-                      type="email"
-                      value={activeClient.email ?? ""}
-                      onChange={(e) => setActiveClient({ email: e.target.value })}
-                      readOnly={clientMode === "existing"}
-                    />
+                  <Field label={t("devis.client_email")}>
+                    <Input type="email" value={activeClient.email ?? ""} onChange={(e) => setActiveClient({ email: e.target.value })} readOnly={clientMode === "existing"} />
                   </Field>
-                  <Field label="Téléphone">
-                    <Input
-                      type="tel"
-                      value={activeClient.phone ?? ""}
-                      onChange={(e) => setActiveClient({ phone: e.target.value })}
-                      readOnly={clientMode === "existing"}
-                    />
+                  <Field label={t("devis.client_phone")}>
+                    <Input type="tel" value={activeClient.phone ?? ""} onChange={(e) => setActiveClient({ phone: e.target.value })} readOnly={clientMode === "existing"} />
                   </Field>
-                  <Field label="Adresse" className="md:col-span-2">
-                    <Input
-                      value={activeClient.address_line1 ?? ""}
-                      onChange={(e) => setActiveClient({ address_line1: e.target.value })}
-                      readOnly={clientMode === "existing"}
-                      placeholder="N° et rue"
-                    />
-                    <Input
-                      className="mt-2"
-                      value={activeClient.address_line2 ?? ""}
-                      onChange={(e) => setActiveClient({ address_line2: e.target.value })}
-                      readOnly={clientMode === "existing"}
-                      placeholder="Complément"
-                    />
+                  <Field label={t("devis.client_address")} className="md:col-span-2">
+                    <Input value={activeClient.address_line1 ?? ""} onChange={(e) => setActiveClient({ address_line1: e.target.value })} readOnly={clientMode === "existing"} placeholder={t("devis.client_addr_street")} />
+                    <Input className="mt-2" value={activeClient.address_line2 ?? ""} onChange={(e) => setActiveClient({ address_line2: e.target.value })} readOnly={clientMode === "existing"} placeholder={t("devis.client_addr_comp")} />
                   </Field>
-                  <Field label="Code postal">
-                    <Input
-                      inputMode="numeric"
-                      value={activeClient.postcode ?? ""}
-                      onChange={(e) => setActiveClient({ postcode: e.target.value })}
-                      readOnly={clientMode === "existing"}
-                    />
+                  <Field label={t("devis.client_postcode")}>
+                    <Input inputMode="numeric" value={activeClient.postcode ?? ""} onChange={(e) => setActiveClient({ postcode: e.target.value })} readOnly={clientMode === "existing"} />
                   </Field>
-                  <Field label="Ville">
-                    <Input
-                      value={activeClient.city ?? ""}
-                      onChange={(e) => setActiveClient({ city: e.target.value })}
-                      readOnly={clientMode === "existing"}
-                    />
+                  <Field label={t("devis.client_city")}>
+                    <Input value={activeClient.city ?? ""} onChange={(e) => setActiveClient({ city: e.target.value })} readOnly={clientMode === "existing"} />
                   </Field>
-                  <Field label="Pays">
-                    <Input
-                      value={activeClient.country ?? "France"}
-                      onChange={(e) => setActiveClient({ country: e.target.value })}
-                      readOnly={clientMode === "existing"}
-                    />
+                  <Field label={t("devis.client_country")}>
+                    <Input value={activeClient.country ?? "France"} onChange={(e) => setActiveClient({ country: e.target.value })} readOnly={clientMode === "existing"} />
                   </Field>
                   {activeClient.client_type === "professionnel" && (
-                    <Field label="SIRET">
-                      <Input
-                        inputMode="numeric"
-                        value={activeClient.siret ?? ""}
-                        onChange={(e) => setActiveClient({ siret: e.target.value })}
-                        readOnly={clientMode === "existing"}
-                        placeholder="14 chiffres"
-                        maxLength={20}
-                      />
+                    <Field label={t("devis.client_siret")}>
+                      <Input inputMode="numeric" value={activeClient.siret ?? ""} onChange={(e) => setActiveClient({ siret: e.target.value })} readOnly={clientMode === "existing"} placeholder={t("devis.client_siret_help")} maxLength={20} />
                     </Field>
                   )}
-                  <Field label="N° TVA intracommunautaire (optionnel)">
-                    <Input
-                      value={activeClient.vat_number ?? ""}
-                      onChange={(e) => setActiveClient({ vat_number: e.target.value })}
-                      readOnly={clientMode === "existing"}
-                      placeholder="FRXX999999999"
-                    />
+                  <Field label={t("devis.client_vat")}>
+                    <Input value={activeClient.vat_number ?? ""} onChange={(e) => setActiveClient({ vat_number: e.target.value })} readOnly={clientMode === "existing"} placeholder="FRXX999999999" />
                   </Field>
                 </div>
               </div>
@@ -821,28 +715,16 @@ function DevisEditor() {
 
           {/* PROJECT */}
           <Card className="p-5 space-y-4">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Projet</h2>
-            <Field label="Description du projet">
-              <Textarea
-                rows={3}
-                value={devis.project_description ?? ""}
-                onChange={(e) => update({ project_description: e.target.value })}
-              />
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t("devis.section_project")}</h2>
+            <Field label={t("devis.project_description")}>
+              <Textarea rows={3} value={devis.project_description ?? ""} onChange={(e) => update({ project_description: e.target.value })} />
             </Field>
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Date de début">
-                <Input
-                  type="date"
-                  value={devis.project_start ?? ""}
-                  onChange={(e) => update({ project_start: e.target.value || null })}
-                />
+              <Field label={t("devis.project_start")}>
+                <Input type="date" value={devis.project_start ?? ""} onChange={(e) => update({ project_start: e.target.value || null })} />
               </Field>
-              <Field label="Durée estimée">
-                <Input
-                  value={devis.project_duration ?? ""}
-                  onChange={(e) => update({ project_duration: e.target.value })}
-                  placeholder="ex. 6 mois"
-                />
+              <Field label={t("devis.project_duration")}>
+                <Input value={devis.project_duration ?? ""} onChange={(e) => update({ project_duration: e.target.value })} placeholder={t("devis.project_duration_ph")} />
               </Field>
             </div>
           </Card>
@@ -850,22 +732,20 @@ function DevisEditor() {
           {/* LINE ITEMS */}
           <Card className="p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                Prestations & produits
-              </h2>
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t("devis.section_lines")}</h2>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => setPresetsOpen(true)}>
-                  <Library className="size-4" /> Bibliothèque
+                  <Library className="size-4" /> {t("devis.library")}
                 </Button>
                 <Button size="sm" onClick={() => addLine()}>
-                  <Plus className="size-4" /> Ajouter une ligne
+                  <Plus className="size-4" /> {t("devis.add_line")}
                 </Button>
               </div>
             </div>
 
             {lines.length === 0 && (
               <div className="text-center text-sm text-muted-foreground py-10 border border-dashed rounded-md">
-                Aucune ligne. Cliquez sur « Ajouter une ligne » pour commencer.
+                {t("devis.empty_lines")}
               </div>
             )}
 
@@ -876,89 +756,63 @@ function DevisEditor() {
                   <div key={i} className="border rounded-lg p-3 space-y-3 bg-card">
                     <div className="flex items-start gap-2">
                       <div className="flex flex-col gap-1 pt-1 text-muted-foreground">
-                        <button type="button" onClick={() => moveLine(i, -1)}
-                          className="hover:text-foreground disabled:opacity-30" disabled={i === 0}>
+                        <button type="button" onClick={() => moveLine(i, -1)} className="hover:text-foreground disabled:opacity-30" disabled={i === 0}>
                           <ArrowUp className="size-3.5" />
                         </button>
                         <span className="text-[10px] font-mono text-center">{i + 1}</span>
-                        <button type="button" onClick={() => moveLine(i, 1)}
-                          className="hover:text-foreground disabled:opacity-30" disabled={i === lines.length - 1}>
+                        <button type="button" onClick={() => moveLine(i, 1)} className="hover:text-foreground disabled:opacity-30" disabled={i === lines.length - 1}>
                           <ArrowDown className="size-3.5" />
                         </button>
                       </div>
 
                       <div className="flex-1 grid grid-cols-12 gap-2">
                         <div className="col-span-12 sm:col-span-3">
-                          <Label className="text-[10px] uppercase text-muted-foreground">Type</Label>
+                          <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.line_type")}</Label>
                           <Select value={l.line_type} onValueChange={(v) => updateLine(i, { line_type: v as LineType })}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              {LINE_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                              {LINE_TYPES.map(lt => <SelectItem key={lt} value={lt}>{t(`devis.line_type_${lt}`)}</SelectItem>)}
                             </SelectContent>
                           </Select>
                         </div>
                         <div className="col-span-12 sm:col-span-9">
-                          <Label className="text-[10px] uppercase text-muted-foreground">Désignation</Label>
-                          <Input
-                            value={l.description}
-                            onChange={(e) => updateLine(i, { description: e.target.value })}
-                            placeholder="Intitulé de la prestation ou du produit"
-                          />
+                          <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.line_label")}</Label>
+                          <Input value={l.description} onChange={(e) => updateLine(i, { description: e.target.value })} placeholder={t("devis.line_label_ph")} />
                         </div>
                         <div className="col-span-12">
-                          <Label className="text-[10px] uppercase text-muted-foreground">Description (optionnel)</Label>
-                          <Textarea
-                            rows={2}
-                            value={l.details}
-                            onChange={(e) => updateLine(i, { details: e.target.value })}
-                            placeholder="Détails complémentaires…"
-                          />
+                          <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.line_details")}</Label>
+                          <Textarea rows={2} value={l.details} onChange={(e) => updateLine(i, { details: e.target.value })} placeholder={t("devis.line_details_ph")} />
                         </div>
 
                         <div className="col-span-6 sm:col-span-2">
-                          <Label className="text-[10px] uppercase text-muted-foreground">Quantité</Label>
-                          <Input
-                            type="number" step="0.01" min={0}
-                            className="text-right tabular-nums"
-                            value={l.quantity}
-                            onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })}
-                          />
+                          <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.line_qty")}</Label>
+                          <Input type="number" step="0.01" min={0} className="text-right tabular-nums" value={l.quantity} onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })} />
                         </div>
                         <div className="col-span-6 sm:col-span-2">
-                          <Label className="text-[10px] uppercase text-muted-foreground">Unité</Label>
+                          <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.line_unit")}</Label>
                           <Select value={l.unit} onValueChange={(v) => updateLine(i, { unit: v })}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              {UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                              {UNIT_KEYS.map(uk => {
+                                const v = t(`units.${uk}`);
+                                return <SelectItem key={uk} value={v}>{v}</SelectItem>;
+                              })}
                             </SelectContent>
                           </Select>
                         </div>
                         <div className="col-span-6 sm:col-span-2">
-                          <Label className="text-[10px] uppercase text-muted-foreground">P.U. HT</Label>
-                          <Input
-                            type="number" step="0.01"
-                            className="text-right tabular-nums"
-                            value={l.unit_price_ht}
-                            onChange={(e) => updateLine(i, { unit_price_ht: Number(e.target.value) })}
-                          />
+                          <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.line_pu")}</Label>
+                          <Input type="number" step="0.01" className="text-right tabular-nums" value={l.unit_price_ht} onChange={(e) => updateLine(i, { unit_price_ht: Number(e.target.value) })} />
                         </div>
                         <div className="col-span-6 sm:col-span-3">
-                          <Label className="text-[10px] uppercase text-muted-foreground">Remise</Label>
+                          <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.line_discount")}</Label>
                           <div className="flex gap-1">
-                            <Input
-                              type="number" step="0.01" min={0}
-                              className="text-right tabular-nums"
-                              value={l.discount_value}
-                              onChange={(e) => updateLine(i, { discount_value: Number(e.target.value) })}
-                            />
-                            <ToggleUnit
-                              value={l.discount_type}
-                              onChange={(v) => updateLine(i, { discount_type: v })}
-                            />
+                            <Input type="number" step="0.01" min={0} className="text-right tabular-nums" value={l.discount_value} onChange={(e) => updateLine(i, { discount_value: Number(e.target.value) })} />
+                            <ToggleUnit value={l.discount_type} onChange={(v) => updateLine(i, { discount_type: v })} />
                           </div>
                         </div>
                         <div className="col-span-6 sm:col-span-3">
-                          <Label className="text-[10px] uppercase text-muted-foreground">TVA</Label>
+                          <Label className="text-[10px] uppercase text-muted-foreground">{t("devis.line_vat")}</Label>
                           <Select value={String(l.vat_rate)} onValueChange={(v) => updateLine(i, { vat_rate: Number(v) })}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
@@ -968,15 +822,15 @@ function DevisEditor() {
                         </div>
                       </div>
 
-                      <Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="Supprimer">
+                      <Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label={t("devis.remove")}>
                         <Trash2 className="size-4 text-destructive" />
                       </Button>
                     </div>
 
                     <div className="flex justify-end text-sm border-t pt-2">
-                      <span className="text-muted-foreground mr-3">Total HT ligne</span>
+                      <span className="text-muted-foreground mr-3">{t("devis.line_total")}</span>
                       <span className={`font-semibold tabular-nums ${net < 0 ? "text-destructive" : ""}`}>
-                        {fmtEUR(net)}
+                        {fmtEUR(net, uiLang)}
                       </span>
                     </div>
                   </div>
@@ -985,40 +839,39 @@ function DevisEditor() {
             </div>
           </Card>
 
-          {/* CONDITIONS & LEGAL */}
+          {/* CONDITIONS */}
           <Card className="p-5 space-y-4">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Conditions & mentions légales
-            </h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t("devis.section_conditions")}</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="Conditions de paiement">
-                <Select
-                  value={devis.payment_terms_preset ?? ""}
-                  onValueChange={(v) => update({ payment_terms_preset: v })}
-                >
-                  <SelectTrigger><SelectValue placeholder="— Choisir —" /></SelectTrigger>
+              <Field label={t("devis.payment_terms")}>
+                <Select value={devis.payment_terms_preset ?? ""} onValueChange={(v) => update({ payment_terms_preset: v })}>
+                  <SelectTrigger><SelectValue placeholder={t("devis.client_choose")} /></SelectTrigger>
                   <SelectContent>
-                    {PAYMENT_TERMS_PRESETS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    {PAYMENT_TERM_KEYS.map(k => {
+                      const v = t(`payment_terms.${k}`);
+                      return <SelectItem key={k} value={v}>{v}</SelectItem>;
+                    })}
                   </SelectContent>
                 </Select>
               </Field>
               <div className="space-y-2">
-                <Label className="text-xs">Mode de paiement</Label>
+                <Label className="text-xs">{t("devis.payment_methods")}</Label>
                 <div className="flex flex-wrap gap-3 pt-1">
-                  {PAYMENT_METHODS.map(m => {
-                    const checked = devis.payment_methods.includes(m);
+                  {PAYMENT_METHOD_KEYS.map(k => {
+                    const label = t(`payment_methods.${k}`);
+                    const checked = devis.payment_methods.includes(label);
                     return (
-                      <label key={m} className="flex items-center gap-2 text-sm cursor-pointer">
+                      <label key={k} className="flex items-center gap-2 text-sm cursor-pointer">
                         <Checkbox
                           checked={checked}
                           onCheckedChange={(c) => update({
                             payment_methods: c
-                              ? [...devis.payment_methods, m]
-                              : devis.payment_methods.filter(x => x !== m),
+                              ? [...devis.payment_methods, label]
+                              : devis.payment_methods.filter(x => x !== label),
                           })}
                         />
-                        {m}
+                        {label}
                       </label>
                     );
                   })}
@@ -1026,31 +879,30 @@ function DevisEditor() {
               </div>
             </div>
 
-            <Field label="Conditions générales / Notes">
-              <Textarea
-                rows={4}
-                value={devis.conditions_notes ?? ""}
-                onChange={(e) => update({ conditions_notes: e.target.value })}
-                placeholder="Conditions particulières, garanties, modalités…"
-              />
+            <Field label={t("devis.conditions_notes")}>
+              <Textarea rows={4} value={devis.conditions_notes ?? ""} onChange={(e) => update({ conditions_notes: e.target.value })} placeholder={t("devis.conditions_ph")} />
             </Field>
 
             <div className="space-y-2">
-              <Label className="text-xs">Mentions légales à inclure</Label>
+              <Label className="text-xs">{t("devis.legal_mentions")}</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                {LEGAL_MENTIONS.map(m => {
-                  const checked = devis.legal_mentions.includes(m.key);
+                {LEGAL_MENTION_KEYS.map(k => {
+                  const checked = devis.legal_mentions.includes(k);
+                  const labelKey = k === "vat293b" ? "devis.legal_293b"
+                    : k === "free" ? "devis.legal_free"
+                    : k === "late" ? "devis.legal_late"
+                    : "devis.legal_discount";
                   return (
-                    <label key={m.key} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <label key={k} className="flex items-center gap-2 text-sm cursor-pointer">
                       <Checkbox
                         checked={checked}
                         onCheckedChange={(c) => update({
                           legal_mentions: c
-                            ? [...devis.legal_mentions, m.key]
-                            : devis.legal_mentions.filter(x => x !== m.key),
+                            ? [...devis.legal_mentions, k]
+                            : devis.legal_mentions.filter(x => x !== k),
                         })}
                       />
-                      {m.label}
+                      {t(labelKey)}
                     </label>
                   );
                 })}
@@ -1060,107 +912,79 @@ function DevisEditor() {
             <Separator />
 
             <div className="space-y-3">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Bon pour accord</Label>
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t("devis.signature")}</Label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Field label="Nom du client">
+                <Field label={t("devis.signature_name")}>
                   <Input
                     value={devis.signature_client_name ?? (savedClient?.contact_name ?? savedClient?.name ?? newClient.contact_name ?? newClient.name ?? "")}
                     onChange={(e) => update({ signature_client_name: e.target.value })}
                   />
                 </Field>
-                <Field label="Date de signature">
-                  <Input
-                    type="date"
-                    value={devis.signature_date ?? ""}
-                    onChange={(e) => update({ signature_date: e.target.value || null })}
-                  />
+                <Field label={t("devis.signature_date")}>
+                  <Input type="date" value={devis.signature_date ?? ""} onChange={(e) => update({ signature_date: e.target.value || null })} />
                 </Field>
               </div>
               <div className="border-2 border-dashed rounded-md h-24 flex items-center justify-center text-xs text-muted-foreground">
-                Espace de signature (apposé sur le PDF)
+                {t("devis.signature_space")}
               </div>
             </div>
 
-            <Field label="Notes internes (PDF)">
-              <Textarea
-                rows={2}
-                value={devis.notes ?? ""}
-                onChange={(e) => update({ notes: e.target.value })}
-              />
+            <Field label={t("devis.internal_notes")}>
+              <Textarea rows={2} value={devis.notes ?? ""} onChange={(e) => update({ notes: e.target.value })} />
             </Field>
           </Card>
         </div>
 
-        {/* RIGHT — totals sidebar */}
+        {/* SUMMARY sidebar */}
         <Card className="p-5 space-y-4 h-fit lg:sticky lg:top-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Récapitulatif</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t("devis.section_summary")}</h2>
 
-          <Row k="Total HT (brut)" v={fmtEUR(totals.subtotalHT)} />
+          <Row k={t("devis.summary_gross")} v={fmtEUR(totals.subtotalHT, uiLang)} />
 
           <div className="space-y-2">
-            <Label className="text-xs">Remise globale</Label>
+            <Label className="text-xs">{t("devis.summary_global_discount")}</Label>
             <div className="flex gap-1">
-              <Input
-                type="number" step="0.01" min={0}
-                className="text-right tabular-nums"
-                value={devis.global_discount_value}
-                onChange={(e) => update({ global_discount_value: Number(e.target.value) })}
-              />
-              <ToggleUnit
-                value={devis.global_discount_type}
-                onChange={(v) => update({ global_discount_type: v })}
-              />
+              <Input type="number" step="0.01" min={0} className="text-right tabular-nums" value={devis.global_discount_value} onChange={(e) => update({ global_discount_value: Number(e.target.value) })} />
+              <ToggleUnit value={devis.global_discount_type} onChange={(v) => update({ global_discount_type: v })} />
             </div>
             {totals.globalDiscAmt > 0 &&
-              <div className="text-xs text-muted-foreground text-right">
-                − {fmtEUR(totals.globalDiscAmt)}
-              </div>}
+              <div className="text-xs text-muted-foreground text-right">− {fmtEUR(totals.globalDiscAmt, uiLang)}</div>}
           </div>
 
           <Separator />
 
-          <Row k="Total HT net" v={fmtEUR(totals.netAfterDiscount)} />
+          <Row k={t("devis.summary_net")} v={fmtEUR(totals.netAfterDiscount, uiLang)} />
 
           {totals.vatByRate.length > 0 ? (
             <div className="space-y-1">
               {totals.vatByRate.map(([rate, amt]) => (
-                <Row key={rate} k={`TVA ${rate} %`} v={fmtEUR(amt)} muted />
+                <Row key={rate} k={t("devis.summary_vat_rate", { rate })} v={fmtEUR(amt, uiLang)} muted />
               ))}
-              <Row k="Total TVA" v={fmtEUR(totals.totalVAT)} />
+              <Row k={t("devis.summary_vat_total")} v={fmtEUR(totals.totalVAT, uiLang)} />
             </div>
           ) : (
-            <p className="text-xs italic text-muted-foreground">
-              TVA non applicable, art. 293 B du CGI
-            </p>
+            <p className="text-xs italic text-muted-foreground">{t("devis.summary_vat_na")}</p>
           )}
 
           <Separator />
 
           <div className="flex justify-between items-baseline">
-            <span className="font-semibold">Total TTC</span>
-            <span className="text-xl font-bold tabular-nums text-primary">{fmtEUR(totals.totalTTC)}</span>
+            <span className="font-semibold">{t("devis.summary_total_ttc")}</span>
+            <span className="text-xl font-bold tabular-nums text-primary">{fmtEUR(totals.totalTTC, uiLang)}</span>
           </div>
 
           <Separator />
 
           <div className="space-y-2">
-            <Label className="text-xs">Acompte demandé</Label>
+            <Label className="text-xs">{t("devis.summary_deposit_ask")}</Label>
             <div className="flex gap-1">
-              <Input
-                type="number" step="0.01" min={0}
-                className="text-right tabular-nums"
-                value={devis.deposit_value}
-                onChange={(e) => update({ deposit_value: Number(e.target.value) })}
-              />
-              <ToggleUnit
-                value={devis.deposit_type}
-                onChange={(v) => update({ deposit_type: v })}
-              />
+              <Input type="number" step="0.01" min={0} className="text-right tabular-nums" value={devis.deposit_value} onChange={(e) => update({ deposit_value: Number(e.target.value) })} />
+              <ToggleUnit value={devis.deposit_type} onChange={(v) => update({ deposit_type: v })} />
             </div>
             {totals.depositAmount > 0 && (
               <div className="space-y-1 pt-2">
-                <Row k="Acompte à régler" v={fmtEUR(totals.depositAmount)} muted />
-                <Row k="Solde à la livraison" v={fmtEUR(totals.balance)} muted />
+                <Row k={t("devis.summary_deposit_due")} v={fmtEUR(totals.depositAmount, uiLang)} muted />
+                <Row k={t("devis.summary_balance")} v={fmtEUR(totals.balance, uiLang)} muted />
               </div>
             )}
           </div>
@@ -1168,30 +992,28 @@ function DevisEditor() {
           <Separator />
 
           <Button variant="outline" className="w-full" onClick={() => save("draft")} disabled={saving}>
-            <Save className="size-4" /> Sauvegarder en brouillon
+            <Save className="size-4" /> {t("devis.save_draft")}
           </Button>
         </Card>
       </div>
 
-      {/* Preview dialog */}
+      {/* Preview */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-5xl h-[85vh] p-0">
-          <DialogHeader className="p-4 border-b"><DialogTitle>Aperçu du devis</DialogTitle></DialogHeader>
+          <DialogHeader className="p-4 border-b"><DialogTitle>{t("devis.preview_title")}</DialogTitle></DialogHeader>
           <div className="flex-1 h-full">
             {previewUrl && <iframe src={previewUrl} title="PDF" className="w-full h-full border-0" />}
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Presets dialog */}
+      {/* Library */}
       <Dialog open={presetsOpen} onOpenChange={setPresetsOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Bibliothèque de prestations</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("devis.library_title")}</DialogTitle></DialogHeader>
           <div className="space-y-1 max-h-96 overflow-y-auto">
             {presets.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-6">
-                Aucune prestation enregistrée.
-              </p>
+              <p className="text-sm text-muted-foreground text-center py-6">{t("devis.library_empty")}</p>
             )}
             {presets.map(p => (
               <button
@@ -1209,7 +1031,7 @@ function DevisEditor() {
                 </div>
                 <div className="text-right text-xs text-muted-foreground">
                   <Badge variant="secondary">{p.default_unit ?? "—"}</Badge>
-                  {p.default_rate != null && <div className="mt-1 tabular-nums">{fmtEUR(Number(p.default_rate))}</div>}
+                  {p.default_rate != null && <div className="mt-1 tabular-nums">{fmtEUR(Number(p.default_rate), uiLang)}</div>}
                 </div>
               </button>
             ))}
@@ -1220,15 +1042,12 @@ function DevisEditor() {
   );
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Small UI helpers
-// ──────────────────────────────────────────────────────────────────────────────
-
-function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+function Field({ label, children, className, help }: { label: string; children: React.ReactNode; className?: string; help?: string }) {
   return (
     <div className={`space-y-1.5 ${className ?? ""}`}>
       <Label className="text-xs">{label}</Label>
       {children}
+      {help ? <p className="text-[11px] text-muted-foreground">{help}</p> : null}
     </div>
   );
 }
@@ -1245,16 +1064,8 @@ function Row({ k, v, muted, bold }: { k: string; v: string; muted?: boolean; bol
 function ToggleUnit({ value, onChange }: { value: DiscountType; onChange: (v: DiscountType) => void }) {
   return (
     <div className="inline-flex rounded-md border bg-background overflow-hidden text-xs shrink-0">
-      <button
-        type="button"
-        className={`px-2 ${value === "percent" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
-        onClick={() => onChange("percent")}
-      >%</button>
-      <button
-        type="button"
-        className={`px-2 ${value === "amount" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
-        onClick={() => onChange("amount")}
-      >€</button>
+      <button type="button" className={`px-2 ${value === "percent" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`} onClick={() => onChange("percent")}>%</button>
+      <button type="button" className={`px-2 ${value === "amount" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`} onClick={() => onChange("amount")}>€</button>
     </div>
   );
 }

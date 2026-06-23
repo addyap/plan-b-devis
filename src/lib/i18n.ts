@@ -2,13 +2,15 @@ export type Lang = "en" | "fr";
 
 export const L = {
   devis: { en: "QUOTE", fr: "DEVIS" },
+  facture: { en: "INVOICE", fr: "FACTURE" },
   number: { en: "No.", fr: "Nº" },
   date: { en: "Date", fr: "Date" },
   validUntil: { en: "Valid until", fr: "Valable jusqu'au" },
+  dueDate: { en: "Due date", fr: "Échéance" },
   issuer: { en: "Issuer", fr: "Émetteur" },
   client: { en: "Client", fr: "Client" },
   project: { en: "Project", fr: "Projet" },
-  description: { en: "Description", fr: "Description" },
+  description: { en: "Description", fr: "Désignation" },
   qty: { en: "Qty", fr: "Qté" },
   unit: { en: "Unit", fr: "Unité" },
   unitPrice: { en: "Unit price (excl. VAT)", fr: "PU HT" },
@@ -32,6 +34,14 @@ export const L = {
   rcs: { en: "RCS/RM", fr: "RCS/RM" },
   insurance: { en: "Insurance", fr: "Assurance" },
   bank: { en: "Bank details", fr: "Coordonnées bancaires" },
+  vatNa: {
+    en: "VAT not applicable, article 293 B of the French CGI",
+    fr: "TVA non applicable, article 293 B du CGI",
+  },
+  signatureBlock: {
+    en: "Quote received before work begins — Approved — agreed, on …………  Signature:",
+    fr: "Devis reçu avant l'exécution des travaux — Bon pour accord, le …………  Signature :",
+  },
 };
 
 export function t(key: keyof typeof L, lang: Lang) {

@@ -37,9 +37,12 @@ export type PdfFacture = {
 };
 
 const NAVY: [number, number, number] = [15, 27, 61];
-const fmtMoney = (n: number) =>
-  new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n || 0)) + " \u20AC";
-const fmtD = (d: string | null | undefined) => (d ? new Date(d).toLocaleDateString("fr-FR") : "—");
+const locale = (l: Lang) => (l === "fr" ? "fr-FR" : "en-GB");
+const fmtMoney = (n: number, lang: Lang) =>
+  new Intl.NumberFormat(locale(lang), { style: "currency", currency: "EUR" }).format(Number(n || 0));
+const fmtD = (d: string | null | undefined, lang: Lang) =>
+  d ? new Intl.DateTimeFormat(locale(lang), { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(d)) : "—";
+
 
 async function fetchLogoDataUrl(logoUrl: string | null): Promise<{ data: string; w: number; h: number; fmt: "PNG" | "JPEG" } | null> {
   if (!logoUrl) return null;
@@ -99,7 +102,7 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
   const tva = profile.vat_status === "tva_registered";
   const tradingName = profile.trading_name || profile.legal_name || "Plan B Concept";
   const balance = input.depositAmount ? input.totalTtc - Number(input.depositAmount) : null;
-  const titleWord = input.kind === "devis" ? L.devis[lang] : (lang === "fr" ? "FACTURE" : "INVOICE");
+  const titleWord = input.kind === "devis" ? L.devis[lang] : L.facture[lang];
 
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
@@ -124,8 +127,9 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
   const titleLine = `${titleWord} N\u00B0 ${input.number}`;
   doc.text(titleLine, pageW - M, y + 6, { align: "right" });
   doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(70);
-  doc.text(`${L.date[lang]} : ${fmtD(input.issueDate)}`, pageW - M, y + 12, { align: "right" });
-  doc.text(`${input.rightDateLabel} : ${fmtD(input.rightDate)}`, pageW - M, y + 17, { align: "right" });
+  doc.text(`${L.date[lang]} : ${fmtD(input.issueDate, lang)}`, pageW - M, y + 12, { align: "right" });
+  doc.text(`${input.rightDateLabel} : ${fmtD(input.rightDate, lang)}`, pageW - M, y + 17, { align: "right" });
+
 
   y += 22;
   doc.setDrawColor(...NAVY).setLineWidth(0.6).line(M, y, pageW - M, y);
@@ -184,7 +188,7 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
     descLines.forEach((ln: string, i: number) => doc.text(ln, M + 3, y + 9 + i * 4.4));
     let py = y + 9 + descLines.length * 4.4;
     const meta: string[] = [];
-    if (input.projectStart) meta.push(`${L.startDate[lang]}: ${fmtD(input.projectStart)}`);
+    if (input.projectStart) meta.push(`${L.startDate[lang]}: ${fmtD(input.projectStart, lang)}`);
     if (input.projectDuration) meta.push(`${L.duration[lang]}: ${input.projectDuration}`);
     if (meta.length) { doc.setTextColor(90); doc.text(meta.join("   "), M + 3, py + 2); py += 4.4; }
     y = py + 4;
@@ -199,8 +203,9 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
       l.description,
       String(Number(l.quantity)),
       l.unit || "—",
-      fmtMoney(Number(l.unit_price_ht)),
-      fmtMoney(Number(l.line_total_ht)),
+      fmtMoney(Number(l.unit_price_ht), lang),
+      fmtMoney(Number(l.line_total_ht), lang),
+
     ]),
     headStyles: { fillColor: NAVY, textColor: 255, fontStyle: "bold", fontSize: 9 },
     bodyStyles: { fontSize: 9, textColor: 30 },
@@ -225,20 +230,21 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
     doc.text(value, valX, y, { align: "right" });
     y += bold ? 6.5 : 5;
   };
-  row(L.subtotal[lang], fmtMoney(input.subtotalHt));
-  if (tva) row(`${L.vat[lang]} (${profile.vat_rate} %)`, fmtMoney(input.vatAmount));
+  row(L.subtotal[lang], fmtMoney(input.subtotalHt, lang));
+  if (tva) row(`${L.vat[lang]} (${profile.vat_rate} %)`, fmtMoney(input.vatAmount, lang));
   doc.setDrawColor(...NAVY).setLineWidth(0.4).line(totalsX, y, valX, y); y += 3;
-  row(L.totalTtc[lang], fmtMoney(input.totalTtc), true);
+  row(L.totalTtc[lang], fmtMoney(input.totalTtc, lang), true);
   if (!tva) {
     doc.setFont("helvetica", "italic").setFontSize(8).setTextColor(80);
-    doc.text("TVA non applicable, article 293 B du CGI", valX, y, { align: "right" });
+    doc.text(L.vatNa[lang], valX, y, { align: "right" });
     y += 5;
   }
   if (input.depositAmount && balance !== null) {
     y += 2;
-    row(L.deposit[lang], fmtMoney(Number(input.depositAmount)));
-    row(L.balance[lang], fmtMoney(balance));
+    row(L.deposit[lang], fmtMoney(Number(input.depositAmount), lang));
+    row(L.balance[lang], fmtMoney(balance, lang));
   }
+
   y += 4;
 
   // Conditions (devis only includes validity & "Devis gratuit")
@@ -258,7 +264,7 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
   sec(L.paymentTerms[lang], profile.default_payment_terms || "");
   sec(L.latePenalty[lang], profile.late_penalty_terms || "");
   if (input.kind === "devis") {
-    sec(`${L.validity[lang]} \u00B7 ${L.free[lang]}`, `${L.validUntil[lang]}: ${fmtD(input.rightDate)}`);
+    sec(`${L.validity[lang]} \u00B7 ${L.free[lang]}`, `${L.validUntil[lang]}: ${fmtD(input.rightDate, lang)}`);
   }
   sec(L.notes[lang], input.notes || "");
 
@@ -267,7 +273,7 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
     ensureSpace(28);
     doc.setDrawColor(...NAVY).setLineWidth(0.4).rect(M, y, pageW - M * 2, 22);
     doc.setFont("helvetica", "bold").setFontSize(9).setTextColor(...NAVY);
-    doc.text("Devis re\u00e7u avant l\u2019ex\u00e9cution des travaux \u2014 Bon pour accord, le \u2026\u2026\u2026\u2026  Signature :", M + 3, y + 6);
+    doc.text(L.signatureBlock[lang], M + 3, y + 6);
     y += 26;
   }
 

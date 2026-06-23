@@ -1,12 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { fmtDate, fmtEUR, todayISO } from "@/lib/format";
+import { fmtDate, fmtEUR, todayISO, type Locale } from "@/lib/format";
 import { Plus, Search } from "lucide-react";
 
 export const Route = createFileRoute("/_app/dashboard")({
@@ -32,11 +33,12 @@ const STATUS_STYLES: Record<DevisRow["status"], string> = {
 };
 
 function Dashboard() {
+  const { t, i18n } = useTranslation();
+  const lang: Locale = i18n.resolvedLanguage?.startsWith("en") ? "en" : "fr";
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
 
-  // Auto-expire on mount
   useEffect(() => {
     supabase
       .from("devis")
@@ -104,13 +106,17 @@ function Dashboard() {
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Devis</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">{t("dashboard.title")}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {acceptedThisYear.length} accepted in {yr} · {fmtEUR(acceptedTotal)}
+            {t("dashboard.subtitle_one", {
+              count: acceptedThisYear.length,
+              year: yr,
+              total: fmtEUR(acceptedTotal, lang),
+            })}
           </p>
         </div>
         <Button onClick={newDevis} size="lg">
-          <Plus className="size-4" /> New devis
+          <Plus className="size-4" /> {t("dashboard.new")}
         </Button>
       </div>
 
@@ -118,7 +124,7 @@ function Dashboard() {
         <div className="relative flex-1 min-w-[240px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
-            placeholder="Search by client or number…"
+            placeholder={t("dashboard.search_placeholder")}
             className="pl-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -127,12 +133,12 @@ function Dashboard() {
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="draft">Draft</SelectItem>
-            <SelectItem value="sent">Sent</SelectItem>
-            <SelectItem value="accepted">Accepted</SelectItem>
-            <SelectItem value="declined">Declined</SelectItem>
-            <SelectItem value="expired">Expired</SelectItem>
+            <SelectItem value="all">{t("dashboard.all_statuses")}</SelectItem>
+            <SelectItem value="draft">{t("status.draft")}</SelectItem>
+            <SelectItem value="sent">{t("status.sent")}</SelectItem>
+            <SelectItem value="accepted">{t("status.accepted")}</SelectItem>
+            <SelectItem value="declined">{t("status.declined")}</SelectItem>
+            <SelectItem value="expired">{t("status.expired")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -141,17 +147,17 @@ function Dashboard() {
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="text-left px-4 py-3">Number</th>
-              <th className="text-left px-4 py-3">Client</th>
-              <th className="text-left px-4 py-3">Issue</th>
-              <th className="text-left px-4 py-3">Validity</th>
-              <th className="text-right px-4 py-3">Total TTC</th>
-              <th className="text-left px-4 py-3">Status</th>
+              <th className="text-left px-4 py-3">{t("dashboard.col_number")}</th>
+              <th className="text-left px-4 py-3">{t("dashboard.col_client")}</th>
+              <th className="text-left px-4 py-3">{t("dashboard.col_issue")}</th>
+              <th className="text-left px-4 py-3">{t("dashboard.col_validity")}</th>
+              <th className="text-right px-4 py-3">{t("dashboard.col_total")}</th>
+              <th className="text-left px-4 py-3">{t("dashboard.col_status")}</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={6} className="text-center py-12 text-muted-foreground">No devis yet.</td></tr>
+              <tr><td colSpan={6} className="text-center py-12 text-muted-foreground">{t("dashboard.empty")}</td></tr>
             )}
             {filtered.map((d) => (
               <tr key={d.id} className="border-t hover:bg-muted/30 cursor-pointer" onClick={() => navigate({ to: "/devis/$id", params: { id: d.id } })}>
@@ -159,11 +165,11 @@ function Dashboard() {
                   <Link to="/devis/$id" params={{ id: d.id }} className="hover:underline">{d.devis_number}</Link>
                 </td>
                 <td className="px-4 py-3">{d.client?.name ?? <span className="text-muted-foreground">—</span>}</td>
-                <td className="px-4 py-3">{fmtDate(d.issue_date)}</td>
-                <td className="px-4 py-3">{fmtDate(d.validity_until)}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{fmtEUR(Number(d.total_ttc))}</td>
+                <td className="px-4 py-3">{fmtDate(d.issue_date, lang)}</td>
+                <td className="px-4 py-3">{fmtDate(d.validity_until, lang)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{fmtEUR(Number(d.total_ttc), lang)}</td>
                 <td className="px-4 py-3">
-                  <Badge className={STATUS_STYLES[d.status]} variant="secondary">{d.status}</Badge>
+                  <Badge className={STATUS_STYLES[d.status]} variant="secondary">{t(`status.${d.status}`)}</Badge>
                 </td>
               </tr>
             ))}
