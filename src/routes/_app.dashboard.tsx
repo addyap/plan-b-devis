@@ -104,7 +104,56 @@ function Dashboard() {
     refetch();
   };
 
-  return (
+  const downloadRow = async (devisId: string) => {
+    const t0 = toast.loading("PDF…");
+    try {
+      const [{ data: dev, error: dErr }, { data: lns, error: lErr }, { data: prof, error: pErr }] = await Promise.all([
+        supabase.from("devis").select("*, client:clients(*)").eq("id", devisId).maybeSingle(),
+        supabase.from("devis_lines").select("*").eq("devis_id", devisId).order("position"),
+        supabase.from("business_profile").select("*").limit(1).maybeSingle(),
+      ]);
+      if (dErr || lErr || pErr || !dev || !prof) throw new Error(dErr?.message || lErr?.message || pErr?.message || "Missing data");
+      const pdfDevis: PdfDevis = {
+        devis_number: dev.devis_number,
+        issue_date: dev.issue_date,
+        validity_until: dev.validity_until,
+        language: (dev.language ?? "fr") as PdfDevis["language"],
+        project_description: dev.project_description ?? null,
+        project_start: dev.project_start ?? null,
+        project_duration: dev.project_duration ?? null,
+        subtotal_ht: Number(dev.subtotal_ht ?? 0),
+        vat_amount: Number(dev.vat_amount ?? 0),
+        total_ttc: Number(dev.total_ttc ?? 0),
+        deposit_amount: dev.deposit_amount != null ? Number(dev.deposit_amount) : null,
+        notes: dev.notes ?? null,
+      };
+      const pdfLines: PdfLine[] = (lns ?? []).map((l: any) => ({
+        description: l.description,
+        quantity: Number(l.quantity ?? 0),
+        unit: l.unit ?? null,
+        unit_price_ht: Number(l.unit_price_ht ?? 0),
+        line_total_ht: Number(l.line_total_ht ?? 0),
+      }));
+      const pdfClient: PdfClient = dev.client
+        ? {
+            name: dev.client.name,
+            contact_name: dev.client.contact_name ?? null,
+            address_line1: dev.client.address_line1 ?? null,
+            address_line2: dev.client.address_line2 ?? null,
+            postcode: dev.client.postcode ?? null,
+            city: dev.client.city ?? null,
+            country: dev.client.country ?? null,
+            email: dev.client.email ?? null,
+            phone: dev.client.phone ?? null,
+          }
+        : null;
+      const doc = await generateDevisPdf(pdfDevis, pdfLines, prof as PdfProfile, pdfClient);
+      doc.save(`${dev.devis_number}.pdf`);
+      toast.success("PDF", { id: t0 });
+    } catch (e) {
+      toast.error(`PDF: ${(e as Error).message}`, { id: t0 });
+    }
+  };
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
