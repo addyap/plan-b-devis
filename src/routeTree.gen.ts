@@ -9,9 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as VIdRouteImport } from './routes/v.$id'
+import { Route as VTokenRouteImport } from './routes/v.$token'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppFacturesRouteImport } from './routes/_app.factures'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
@@ -19,6 +20,11 @@ import { Route as AppClientsRouteImport } from './routes/_app.clients'
 import { Route as AppFacturesIdRouteImport } from './routes/_app.factures.$id'
 import { Route as AppDevisIdRouteImport } from './routes/_app.devis.$id'
 
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
@@ -28,9 +34,9 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const VIdRoute = VIdRouteImport.update({
-  id: '/v/$id',
-  path: '/v/$id',
+const VTokenRoute = VTokenRouteImport.update({
+  id: '/v/$token',
+  path: '/v/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
@@ -66,21 +72,23 @@ const AppDevisIdRoute = AppDevisIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/clients': typeof AppClientsRoute
   '/dashboard': typeof AppDashboardRoute
   '/factures': typeof AppFacturesRouteWithChildren
   '/settings': typeof AppSettingsRoute
-  '/v/$id': typeof VIdRoute
+  '/v/$token': typeof VTokenRoute
   '/devis/$id': typeof AppDevisIdRoute
   '/factures/$id': typeof AppFacturesIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/clients': typeof AppClientsRoute
   '/dashboard': typeof AppDashboardRoute
   '/factures': typeof AppFacturesRouteWithChildren
   '/settings': typeof AppSettingsRoute
-  '/v/$id': typeof VIdRoute
+  '/v/$token': typeof VTokenRoute
   '/devis/$id': typeof AppDevisIdRoute
   '/factures/$id': typeof AppFacturesIdRoute
 }
@@ -88,11 +96,12 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/auth': typeof AuthRoute
   '/_app/clients': typeof AppClientsRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/factures': typeof AppFacturesRouteWithChildren
   '/_app/settings': typeof AppSettingsRoute
-  '/v/$id': typeof VIdRoute
+  '/v/$token': typeof VTokenRoute
   '/_app/devis/$id': typeof AppDevisIdRoute
   '/_app/factures/$id': typeof AppFacturesIdRoute
 }
@@ -100,32 +109,35 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/clients'
     | '/dashboard'
     | '/factures'
     | '/settings'
-    | '/v/$id'
+    | '/v/$token'
     | '/devis/$id'
     | '/factures/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth'
     | '/clients'
     | '/dashboard'
     | '/factures'
     | '/settings'
-    | '/v/$id'
+    | '/v/$token'
     | '/devis/$id'
     | '/factures/$id'
   id:
     | '__root__'
     | '/'
     | '/_app'
+    | '/auth'
     | '/_app/clients'
     | '/_app/dashboard'
     | '/_app/factures'
     | '/_app/settings'
-    | '/v/$id'
+    | '/v/$token'
     | '/_app/devis/$id'
     | '/_app/factures/$id'
   fileRoutesById: FileRoutesById
@@ -133,11 +145,19 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
-  VIdRoute: typeof VIdRoute
+  AuthRoute: typeof AuthRoute
+  VTokenRoute: typeof VTokenRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app': {
       id: '/_app'
       path: ''
@@ -152,11 +172,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/v/$id': {
-      id: '/v/$id'
-      path: '/v/$id'
-      fullPath: '/v/$id'
-      preLoaderRoute: typeof VIdRouteImport
+    '/v/$token': {
+      id: '/v/$token'
+      path: '/v/$token'
+      fullPath: '/v/$token'
+      preLoaderRoute: typeof VTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/settings': {
@@ -237,7 +257,8 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
-  VIdRoute: VIdRoute,
+  AuthRoute: AuthRoute,
+  VTokenRoute: VTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

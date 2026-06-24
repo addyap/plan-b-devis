@@ -15,7 +15,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import {
   ArrowDown, ArrowLeft, ArrowUp, Download, Eye, FileCheck2,
-  Mail, Plus, Save, Trash2, UserPlus, Library,
+  Mail, Plus, Save, Trash2, UserPlus, Library, Link as LinkIcon, RefreshCw,
 } from "lucide-react";
 import { fmtEUR, fmtDate, addDays, todayISO, type Locale } from "@/lib/format";
 import { toast } from "sonner";
@@ -90,6 +90,7 @@ type Devis = {
   works_budget_ht: number | null;
   mission_phases: string[];
   payment_schedule: ScheduleRow[];
+  share_token: string | null;
 };
 
 type ClientRow = {
@@ -270,6 +271,7 @@ function DevisEditor() {
           works_budget_ht: dd.works_budget_ht != null ? Number(dd.works_budget_ht) : null,
           mission_phases: dd.mission_phases ?? [],
           payment_schedule: Array.isArray(dd.payment_schedule) ? dd.payment_schedule : [],
+          share_token: dd.share_token ?? null,
         });
       }
       setLines(((l.data ?? []) as any[]).map(x => ({
@@ -579,6 +581,33 @@ function DevisEditor() {
     finally { setSending(false); }
   };
 
+  const copyShareLink = async () => {
+    if (!devis) return;
+    if (devis.status === "draft") {
+      toast.error(uiLang === "fr" ? "Envoyez le devis avant de partager le lien." : "Send the devis before sharing.");
+      return;
+    }
+    let token = devis.share_token;
+    if (!token) {
+      const { data, error } = await supabase.rpc("rotate_devis_share_token", { p_id: devis.id });
+      if (error || !data) { toast.error(error?.message ?? "Error"); return; }
+      token = data as string;
+      setDevis({ ...devis, share_token: token });
+    }
+    const url = `${window.location.origin}/v/${token}`;
+    try { await navigator.clipboard.writeText(url); toast.success(uiLang === "fr" ? "Lien copié" : "Link copied"); }
+    catch { toast.message(url); }
+  };
+
+  const rotateShareLink = async () => {
+    if (!devis) return;
+    const { data, error } = await supabase.rpc("rotate_devis_share_token", { p_id: devis.id });
+    if (error || !data) { toast.error(error?.message ?? "Error"); return; }
+    setDevis({ ...devis, share_token: data as string });
+    toast.success(uiLang === "fr" ? "Nouveau lien généré (ancien révoqué)" : "New link generated (previous revoked)");
+  };
+
+
   const convertToFacture = async () => {
     setConverting(true);
     try {
@@ -660,6 +689,12 @@ function DevisEditor() {
           </Button>
           <Button variant="outline" onClick={convertToFacture} disabled={converting}>
             <FileCheck2 className="size-4" /> {converting ? "…" : t("devis.convert")}
+          </Button>
+          <Button variant="outline" onClick={copyShareLink} disabled={devis.status === "draft"} title={devis.status === "draft" ? (uiLang === "fr" ? "Disponible après envoi" : "Available once sent") : undefined}>
+            <LinkIcon className="size-4" /> {uiLang === "fr" ? "Copier le lien" : "Copy link"}
+          </Button>
+          <Button variant="outline" onClick={rotateShareLink} title={uiLang === "fr" ? "Régénérer (révoque l'ancien lien)" : "Regenerate (revoke previous link)"}>
+            <RefreshCw className="size-4" />
           </Button>
           <Button onClick={() => save()} disabled={saving}>
             <Save className="size-4" /> {saving ? t("common.saving") : t("devis.save")}
