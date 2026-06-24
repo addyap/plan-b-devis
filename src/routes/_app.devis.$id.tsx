@@ -15,7 +15,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import {
   ArrowDown, ArrowLeft, ArrowUp, Download, Eye, FileCheck2,
-  Mail, Plus, Save, Trash2, UserPlus, Library,
+  Mail, Plus, Save, Trash2, UserPlus, Library, Link as LinkIcon, RefreshCw,
 } from "lucide-react";
 import { fmtEUR, fmtDate, addDays, todayISO, type Locale } from "@/lib/format";
 import { toast } from "sonner";
