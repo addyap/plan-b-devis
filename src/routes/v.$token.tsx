@@ -13,7 +13,7 @@ import {
   type SchedulePdfRow,
 } from "@/lib/pdf";
 
-export const Route = createFileRoute("/v/$id")({
+export const Route = createFileRoute("/v/$token")({
   head: () => ({
     meta: [
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
