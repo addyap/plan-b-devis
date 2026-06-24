@@ -78,6 +78,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button variant="ghost" size="sm" onClick={signOut} className="gap-1.5 text-white hover:bg-white/10 hover:text-white" aria-label={current === "fr" ? "Déconnexion" : "Sign out"}>
+              <LogOut className="size-4" />
+              <span className="hidden sm:inline text-xs">{current === "fr" ? "Déconnexion" : "Sign out"}</span>
+            </Button>
           </div>
         </div>
       </header>
