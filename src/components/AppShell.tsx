@@ -1,15 +1,17 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Globe, FileText, Receipt, Users, Settings } from "lucide-react";
+import { Globe, FileText, Receipt, Users, Settings, LogOut } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { persistLocale } from "@/i18n";
+import { supabase } from "@/integrations/supabase/client";
 import logoUrl from "@/assets/plan-b-logo.png";
 
 const NAV = [
