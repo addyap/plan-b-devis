@@ -581,6 +581,33 @@ function DevisEditor() {
     finally { setSending(false); }
   };
 
+  const copyShareLink = async () => {
+    if (!devis) return;
+    if (devis.status === "draft") {
+      toast.error(uiLang === "fr" ? "Envoyez le devis avant de partager le lien." : "Send the devis before sharing.");
+      return;
+    }
+    let token = devis.share_token;
+    if (!token) {
+      const { data, error } = await supabase.rpc("rotate_devis_share_token", { p_id: devis.id });
+      if (error || !data) { toast.error(error?.message ?? "Error"); return; }
+      token = data as string;
+      setDevis({ ...devis, share_token: token });
+    }
+    const url = `${window.location.origin}/v/${token}`;
+    try { await navigator.clipboard.writeText(url); toast.success(uiLang === "fr" ? "Lien copié" : "Link copied"); }
+    catch { toast.message(url); }
+  };
+
+  const rotateShareLink = async () => {
+    if (!devis) return;
+    const { data, error } = await supabase.rpc("rotate_devis_share_token", { p_id: devis.id });
+    if (error || !data) { toast.error(error?.message ?? "Error"); return; }
+    setDevis({ ...devis, share_token: data as string });
+    toast.success(uiLang === "fr" ? "Nouveau lien généré (ancien révoqué)" : "New link generated (previous revoked)");
+  };
+
+
   const convertToFacture = async () => {
     setConverting(true);
     try {
