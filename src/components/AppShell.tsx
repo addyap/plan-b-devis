@@ -24,12 +24,19 @@ const NAV = [
 export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => { setHydrated(true); }, []);
 
   const setLang = (lng: "fr" | "en") => { persistLocale(lng); void i18n.changeLanguage(lng); };
   const active = (i18n.resolvedLanguage ?? i18n.language ?? "fr").startsWith("fr") ? "fr" : "en";
   const current = hydrated ? active : "fr";
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  };
+
 
   const isActive = (to: string) =>
     path.startsWith(to) || (to === "/dashboard" && path.startsWith("/devis"));
