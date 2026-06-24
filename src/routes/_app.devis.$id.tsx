@@ -271,6 +271,7 @@ function DevisEditor() {
           works_budget_ht: dd.works_budget_ht != null ? Number(dd.works_budget_ht) : null,
           mission_phases: dd.mission_phases ?? [],
           payment_schedule: Array.isArray(dd.payment_schedule) ? dd.payment_schedule : [],
+          share_token: dd.share_token ?? null,
         });
       }
       setLines(((l.data ?? []) as any[]).map(x => ({
