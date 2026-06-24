@@ -267,7 +267,7 @@ const LEGAL_MENTION_LABELS: Record<string, { fr: string; en: string }> = {
 // ---------- Component ----------
 
 function PublicDevisView() {
-  const { id } = Route.useParams();
+  const { token } = Route.useParams();
   const [devis, setDevis] = useState<Devis | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
   const [client, setClient] = useState<Client | null>(null);
@@ -278,13 +278,11 @@ function PublicDevisView() {
 
   useEffect(() => {
     (async () => {
-      const [d, l, p] = await Promise.all([
-        supabase.from("devis").select("*").eq("id", id).maybeSingle(),
-        supabase.from("devis_lines").select("*").eq("devis_id", id).order("sort_order"),
-        supabase.from("business_profile").select("*").limit(1).maybeSingle(),
-      ]);
-      const dd = d.data as any;
-      if (!dd) { setNotFound(true); setLoading(false); return; }
+      const { data, error } = await supabase.rpc("get_public_devis", { p_token: token });
+      if (error || !data) { setNotFound(true); setLoading(false); return; }
+      const payload = data as { devis: any; lines: any[]; client: any; profile: any } | null;
+      if (!payload || !payload.devis) { setNotFound(true); setLoading(false); return; }
+      const dd = payload.devis;
       const lang: Lang = dd.language === "en" ? "en" : "fr";
       setDevis({
         ...dd,
@@ -298,7 +296,7 @@ function PublicDevisView() {
         mission_phases: dd.mission_phases ?? [],
         payment_schedule: Array.isArray(dd.payment_schedule) ? dd.payment_schedule : [],
       } as Devis);
-      setLines(((l.data ?? []) as any[]).map(x => ({
+      setLines(((payload.lines ?? []) as any[]).map(x => ({
         line_type: (x.line_type ?? "prestation") as LineType,
         description: x.description ?? "",
         details: x.details ?? null,
@@ -313,14 +311,11 @@ function PublicDevisView() {
         pricing_mode: (x.pricing_mode ?? "amount") as PricingMode,
         percent_of_budget: Number(x.percent_of_budget ?? 0),
       })));
-      if (dd.client_id) {
-        const c = await supabase.from("clients").select("*").eq("id", dd.client_id).maybeSingle();
-        setClient((c.data as Client) ?? null);
-      }
-      setProfile((p.data as unknown as PdfProfile) ?? null);
+      setClient((payload.client as Client) ?? null);
+      setProfile((payload.profile as unknown as PdfProfile) ?? null);
       setLoading(false);
     })();
-  }, [id]);
+  }, [token]);
 
   const lang: Lang = devis?.language ?? "fr";
 
