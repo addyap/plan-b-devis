@@ -90,6 +90,7 @@ type Devis = {
   works_budget_ht: number | null;
   mission_phases: string[];
   payment_schedule: ScheduleRow[];
+  share_token: string | null;
 };
 
 type ClientRow = {
