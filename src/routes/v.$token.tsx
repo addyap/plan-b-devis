@@ -14,6 +14,7 @@ import {
 } from "@/lib/pdf";
 
 export const Route = createFileRoute("/v/$token")({
+  ssr: false,
   head: () => ({
     meta: [
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
