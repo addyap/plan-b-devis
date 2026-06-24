@@ -191,6 +191,8 @@ export type Database = {
           project_name: string | null
           project_start: string | null
           sent_at: string | null
+          share_expires_at: string | null
+          share_token: string
           signature_client_name: string | null
           signature_date: string | null
           site_address_line1: string | null
@@ -233,6 +235,8 @@ export type Database = {
           project_name?: string | null
           project_start?: string | null
           sent_at?: string | null
+          share_expires_at?: string | null
+          share_token?: string
           signature_client_name?: string | null
           signature_date?: string | null
           site_address_line1?: string | null
@@ -275,6 +279,8 @@ export type Database = {
           project_name?: string | null
           project_start?: string | null
           sent_at?: string | null
+          share_expires_at?: string | null
+          share_token?: string
           signature_client_name?: string | null
           signature_date?: string | null
           site_address_line1?: string | null
@@ -526,8 +532,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_public_devis: { Args: { p_token: string }; Returns: Json }
       next_devis_number: { Args: never; Returns: string }
       next_facture_number: { Args: never; Returns: string }
+      rotate_devis_share_token: { Args: { p_id: string }; Returns: string }
     }
     Enums: {
       devis_language: "en" | "fr"
