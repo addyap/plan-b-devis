@@ -663,6 +663,12 @@ function DevisEditor() {
           <Button variant="outline" onClick={convertToFacture} disabled={converting}>
             <FileCheck2 className="size-4" /> {converting ? "…" : t("devis.convert")}
           </Button>
+          <Button variant="outline" onClick={copyShareLink} disabled={devis.status === "draft"} title={devis.status === "draft" ? (uiLang === "fr" ? "Disponible après envoi" : "Available once sent") : undefined}>
+            <LinkIcon className="size-4" /> {uiLang === "fr" ? "Copier le lien" : "Copy link"}
+          </Button>
+          <Button variant="outline" onClick={rotateShareLink} title={uiLang === "fr" ? "Régénérer (révoque l'ancien lien)" : "Regenerate (revoke previous link)"}>
+            <RefreshCw className="size-4" />
+          </Button>
           <Button onClick={() => save()} disabled={saving}>
             <Save className="size-4" /> {saving ? t("common.saving") : t("devis.save")}
           </Button>
