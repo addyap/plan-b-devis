@@ -552,3 +552,70 @@ function ActionList({
     </div>
   );
 }
+
+function SortableTh({
+  label,
+  k,
+  sortKey,
+  sortDir,
+  onClick,
+  align = "left",
+}: {
+  label: string;
+  k: "devis_number" | "client" | "issue_date" | "validity_until" | "total_ttc" | "status";
+  sortKey: string;
+  sortDir: "asc" | "desc";
+  onClick: (k: any) => void;
+  align?: "left" | "right";
+}) {
+  const active = sortKey === k;
+  const Icon = !active ? ArrowUpDown : sortDir === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <th className={`px-4 py-3 ${align === "right" ? "text-right" : "text-left"}`}>
+      <button
+        type="button"
+        onClick={() => onClick(k)}
+        className={`inline-flex items-center gap-1 uppercase tracking-wide text-xs hover:text-foreground ${active ? "text-foreground" : ""}`}
+      >
+        {label}
+        <Icon className="size-3" />
+      </button>
+    </th>
+  );
+}
+
+function exportCsv(
+  rows: {
+    devis_number: string;
+    client: { name: string } | null;
+    issue_date: string;
+    validity_until: string;
+    total_ttc: number;
+    status: string;
+  }[],
+  lang: "en" | "fr",
+) {
+  const header = lang === "en"
+    ? ["Number", "Client", "Issued", "Valid until", "Total TTC (EUR)", "Status"]
+    : ["Numéro", "Client", "Émis le", "Valide jusqu'au", "Total TTC (EUR)", "Statut"];
+  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const lines = [header.map(esc).join(",")];
+  for (const r of rows) {
+    lines.push([
+      r.devis_number,
+      r.client?.name ?? "",
+      r.issue_date,
+      r.validity_until,
+      Number(r.total_ttc).toFixed(2),
+      r.status,
+    ].map((v) => esc(String(v))).join(","));
+  }
+  const csv = "\uFEFF" + lines.join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `devis-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
