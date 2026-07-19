@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { fmtDate, fmtEUR, todayISO, type Locale } from "@/lib/format";
-import { AlertTriangle, Download, FileText, Plus, Search, TrendingUp, Wallet, Clock } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, Download, FileText, Plus, Search, Sheet, TrendingUp, Wallet, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { generateDevisPdf, type PdfClient, type PdfDevis, type PdfLine, type PdfProfile } from "@/lib/pdf";
 
@@ -46,6 +46,13 @@ function Dashboard() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  type SortKey = "devis_number" | "client" | "issue_date" | "validity_until" | "total_ttc" | "status";
+  const [sortKey, setSortKey] = useState<SortKey>("issue_date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const toggleSort = (k: SortKey) => {
+    if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(k); setSortDir(k === "total_ttc" || k === "issue_date" || k === "validity_until" ? "desc" : "asc"); }
+  };
 
   useEffect(() => {
     supabase
@@ -84,7 +91,7 @@ function Dashboard() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return (data ?? []).filter((d) => {
+    const arr = (data ?? []).filter((d) => {
       if (statusFilter !== "all" && d.status !== statusFilter) return false;
       if (!q) return true;
       return (
@@ -92,7 +99,24 @@ function Dashboard() {
         (d.client?.name ?? "").toLowerCase().includes(q)
       );
     });
-  }, [data, statusFilter, search]);
+    const dir = sortDir === "asc" ? 1 : -1;
+    const get = (d: DevisRow) => {
+      switch (sortKey) {
+        case "client": return (d.client?.name ?? "").toLowerCase();
+        case "total_ttc": return Number(d.total_ttc);
+        case "devis_number": return d.devis_number;
+        case "status": return d.status;
+        case "validity_until": return d.validity_until;
+        default: return d.issue_date;
+      }
+    };
+    return [...arr].sort((a, b) => {
+      const va = get(a), vb = get(b);
+      if (va < vb) return -1 * dir;
+      if (va > vb) return 1 * dir;
+      return 0;
+    });
+  }, [data, statusFilter, search, sortKey, sortDir]);
 
   const yr = new Date().getFullYear();
   const rows = data ?? [];
@@ -365,6 +389,13 @@ function Dashboard() {
             <SelectItem value="expired">{t("status.expired")}</SelectItem>
           </SelectContent>
         </Select>
+        <Button
+          variant="outline"
+          onClick={() => exportCsv(filtered, lang)}
+          disabled={filtered.length === 0}
+        >
+          <Sheet className="size-4" /> {lang === "en" ? "Export CSV" : "Exporter CSV"}
+        </Button>
       </div>
 
       {/* Desktop table */}
@@ -372,12 +403,12 @@ function Dashboard() {
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="text-left px-4 py-3">{t("dashboard.col_number")}</th>
-              <th className="text-left px-4 py-3">{t("dashboard.col_client")}</th>
-              <th className="text-left px-4 py-3">{t("dashboard.col_issue")}</th>
-              <th className="text-left px-4 py-3">{t("dashboard.col_validity")}</th>
-              <th className="text-right px-4 py-3">{t("dashboard.col_total")}</th>
-              <th className="text-left px-4 py-3">{t("dashboard.col_status")}</th>
+              <SortableTh label={t("dashboard.col_number")} k="devis_number" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+              <SortableTh label={t("dashboard.col_client")} k="client" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+              <SortableTh label={t("dashboard.col_issue")} k="issue_date" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+              <SortableTh label={t("dashboard.col_validity")} k="validity_until" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+              <SortableTh label={t("dashboard.col_total")} k="total_ttc" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+              <SortableTh label={t("dashboard.col_status")} k="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
               <th className="px-4 py-3 w-12"></th>
             </tr>
           </thead>
@@ -520,4 +551,71 @@ function ActionList({
       )}
     </div>
   );
+}
+
+function SortableTh({
+  label,
+  k,
+  sortKey,
+  sortDir,
+  onClick,
+  align = "left",
+}: {
+  label: string;
+  k: "devis_number" | "client" | "issue_date" | "validity_until" | "total_ttc" | "status";
+  sortKey: string;
+  sortDir: "asc" | "desc";
+  onClick: (k: any) => void;
+  align?: "left" | "right";
+}) {
+  const active = sortKey === k;
+  const Icon = !active ? ArrowUpDown : sortDir === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <th className={`px-4 py-3 ${align === "right" ? "text-right" : "text-left"}`}>
+      <button
+        type="button"
+        onClick={() => onClick(k)}
+        className={`inline-flex items-center gap-1 uppercase tracking-wide text-xs hover:text-foreground ${active ? "text-foreground" : ""}`}
+      >
+        {label}
+        <Icon className="size-3" />
+      </button>
+    </th>
+  );
+}
+
+function exportCsv(
+  rows: {
+    devis_number: string;
+    client: { name: string } | null;
+    issue_date: string;
+    validity_until: string;
+    total_ttc: number;
+    status: string;
+  }[],
+  lang: "en" | "fr",
+) {
+  const header = lang === "en"
+    ? ["Number", "Client", "Issued", "Valid until", "Total TTC (EUR)", "Status"]
+    : ["Numéro", "Client", "Émis le", "Valide jusqu'au", "Total TTC (EUR)", "Statut"];
+  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const lines = [header.map(esc).join(",")];
+  for (const r of rows) {
+    lines.push([
+      r.devis_number,
+      r.client?.name ?? "",
+      r.issue_date,
+      r.validity_until,
+      Number(r.total_ttc).toFixed(2),
+      r.status,
+    ].map((v) => esc(String(v))).join(","));
+  }
+  const csv = "\uFEFF" + lines.join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `devis-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
