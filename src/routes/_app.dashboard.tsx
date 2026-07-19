@@ -246,6 +246,39 @@ function Dashboard() {
     }
   };
 
+  const duplicateRow = async (devisId: string) => {
+    const t0 = toast.loading(lang === "en" ? "Duplicating…" : "Duplication…");
+    try {
+      const { data: numData, error: nErr } = await supabase.rpc("next_devis_number");
+      if (nErr) throw nErr;
+      const { data: src, error: sErr } = await supabase.from("devis").select("*").eq("id", devisId).maybeSingle();
+      if (sErr || !src) throw new Error(sErr?.message || "Missing devis");
+      const { id: _id, devis_number: _n, created_at: _c, updated_at: _u, share_token: _st, share_expires_at: _se, sent_at: _sa, last_email_error: _le, ...header } = src as any;
+      const issue = todayISO();
+      const until = new Date(issue);
+      const validity = Math.max(1, Math.round((new Date(src.validity_until).getTime() - new Date(src.issue_date).getTime()) / 86400000) || 90);
+      until.setDate(until.getDate() + validity);
+      const { data: created, error: iErr } = await supabase
+        .from("devis")
+        .insert({ ...header, devis_number: numData as string, issue_date: issue, validity_until: until.toISOString().slice(0, 10), status: "draft" })
+        .select("id")
+        .single();
+      if (iErr || !created) throw new Error(iErr?.message || "Insert failed");
+      const { data: lines, error: lErr } = await supabase.from("devis_lines").select("*").eq("devis_id", devisId).order("sort_order");
+      if (lErr) throw lErr;
+      if (lines && lines.length) {
+        const newLines = lines.map(({ id: _lid, devis_id: _did, ...rest }: any) => ({ ...rest, devis_id: created.id }));
+        const { error: liErr } = await supabase.from("devis_lines").insert(newLines);
+        if (liErr) throw liErr;
+      }
+      toast.success(lang === "en" ? "Duplicated" : "Dupliqué", { id: t0 });
+      navigate({ to: "/devis/$id", params: { id: created.id } });
+      refetch();
+    } catch (e) {
+      toast.error((e as Error).message, { id: t0 });
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
