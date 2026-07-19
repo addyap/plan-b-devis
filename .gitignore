@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 .output
+.vercel
 .vinxi
 .tanstack/**
 .nitro
@@ -19,6 +20,14 @@ dist-ssr
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
+
+# Local env overrides. NOTE: .env itself is intentionally committed — it holds
+# only the Supabase publishable (anon) keys, which ship to the browser anyway,
+# and the Vercel build inlines VITE_* from it at build time. Never put a
+# service-role key or any other secret in .env — use .env.local (ignored here)
+# for local secrets, and the Vercel dashboard for deployed ones.
+.env.local
+.env.*.local
 
 # Editor directories and files
 .vscode/*
