@@ -98,7 +98,7 @@ function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-[#2E1011] font-sans flex flex-col">
+    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col">
       <div className="absolute top-3 right-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -117,14 +117,14 @@ function AuthPage() {
       <main className="flex-1 grid place-items-center px-4 py-10">
         <div className="w-full max-w-sm">
           <div className="flex flex-col items-center text-center mb-8">
-            <div className="size-20 rounded-md overflow-hidden bg-[#2E1011] p-2 shadow">
+            <div className="size-20 rounded-md overflow-hidden bg-[#2E1011] p-2 shadow ring-1 ring-white/10">
               <img src={brandLogo} alt="Plan B Côte d'Azur" className="size-full object-contain" />
             </div>
-            <h1 className="mt-5 text-2xl font-serif font-semibold tracking-tight">{t("title")}</h1>
-            <p className="text-sm text-neutral-500 mt-1">{t("subtitle")}</p>
+            <h1 className="mt-5 text-2xl font-serif font-semibold tracking-tight text-foreground">{t("title")}</h1>
+            <p className="text-sm text-muted-foreground mt-1">{t("subtitle")}</p>
           </div>
 
-          <form onSubmit={onSubmit} className="space-y-4 bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
+          <form onSubmit={onSubmit} className="space-y-4 bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-sm">
             <div className="space-y-1.5">
               <Label htmlFor="email" className="text-xs">{t("email")}</Label>
               <Input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -144,12 +144,12 @@ function AuthPage() {
               {loading ? <><Loader2 className="size-4 animate-spin" /> {t("loading")}</> : t("submit")}
             </Button>
 
-            <button type="button" onClick={onReset} className="block w-full text-center text-xs text-neutral-500 hover:text-[#2E1011] underline-offset-2 hover:underline">
+            <button type="button" onClick={onReset} className="block w-full text-center text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline">
               {t("forgot")}
             </button>
           </form>
 
-          <p className="text-[11px] text-neutral-400 text-center mt-4">{t("no_signup")}</p>
+          <p className="text-[11px] text-muted-foreground/70 text-center mt-4">{t("no_signup")}</p>
         </div>
       </main>
     </div>
