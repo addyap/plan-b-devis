@@ -144,12 +144,12 @@ function AuthPage() {
               {loading ? <><Loader2 className="size-4 animate-spin" /> {t("loading")}</> : t("submit")}
             </Button>
 
-            <button type="button" onClick={onReset} className="block w-full text-center text-xs text-neutral-500 hover:text-[#2E1011] underline-offset-2 hover:underline">
+            <button type="button" onClick={onReset} className="block w-full text-center text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline">
               {t("forgot")}
             </button>
           </form>
 
-          <p className="text-[11px] text-neutral-400 text-center mt-4">{t("no_signup")}</p>
+          <p className="text-[11px] text-muted-foreground/70 text-center mt-4">{t("no_signup")}</p>
         </div>
       </main>
     </div>
