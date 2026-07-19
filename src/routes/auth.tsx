@@ -98,7 +98,7 @@ function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-[#2E1011] font-sans flex flex-col">
+    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col">
       <div className="absolute top-3 right-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
