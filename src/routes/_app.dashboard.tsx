@@ -46,6 +46,13 @@ function Dashboard() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  type SortKey = "devis_number" | "client" | "issue_date" | "validity_until" | "total_ttc" | "status";
+  const [sortKey, setSortKey] = useState<SortKey>("issue_date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const toggleSort = (k: SortKey) => {
+    if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(k); setSortDir(k === "total_ttc" || k === "issue_date" || k === "validity_until" ? "desc" : "asc"); }
+  };
 
   useEffect(() => {
     supabase
