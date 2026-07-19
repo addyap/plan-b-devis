@@ -91,7 +91,7 @@ function Dashboard() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return (data ?? []).filter((d) => {
+    const arr = (data ?? []).filter((d) => {
       if (statusFilter !== "all" && d.status !== statusFilter) return false;
       if (!q) return true;
       return (
@@ -99,7 +99,24 @@ function Dashboard() {
         (d.client?.name ?? "").toLowerCase().includes(q)
       );
     });
-  }, [data, statusFilter, search]);
+    const dir = sortDir === "asc" ? 1 : -1;
+    const get = (d: DevisRow) => {
+      switch (sortKey) {
+        case "client": return (d.client?.name ?? "").toLowerCase();
+        case "total_ttc": return Number(d.total_ttc);
+        case "devis_number": return d.devis_number;
+        case "status": return d.status;
+        case "validity_until": return d.validity_until;
+        default: return d.issue_date;
+      }
+    };
+    return [...arr].sort((a, b) => {
+      const va = get(a), vb = get(b);
+      if (va < vb) return -1 * dir;
+      if (va > vb) return 1 * dir;
+      return 0;
+    });
+  }, [data, statusFilter, search, sortKey, sortDir]);
 
   const yr = new Date().getFullYear();
   const rows = data ?? [];
