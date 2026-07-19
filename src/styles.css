@@ -35,9 +35,9 @@
   --color-brand-brick: var(--brand-brick);
   --color-brand-brick-hover: var(--brand-brick-hover);
   --color-ring-offset-background: var(--background);
-  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Cormorant Garamond", ui-serif, Georgia, serif;
-  --font-display: "Cormorant Garamond", ui-serif, Georgia, serif;
+ --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+ --font-serif: "Orbitron", ui-sans-serif, system-ui, sans-serif;
+ --font-display: "Orbitron", ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
