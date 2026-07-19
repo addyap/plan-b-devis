@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -53,6 +54,14 @@ type DevisRow = {
 };
 
 type FactureLite = { devis_id: string | null };
+
+type SortColumn =
+  | "devis_number"
+  | "client"
+  | "issue_date"
+  | "validity_until"
+  | "total_ttc"
+  | "status";
 
 const STATUS_STYLES: Record<DevisRow["status"], string> = {
   draft: "bg-muted text-muted-foreground",
@@ -267,7 +276,7 @@ function Dashboard() {
         deposit_amount: dev.deposit_amount != null ? Number(dev.deposit_amount) : null,
         notes: dev.notes ?? null,
       };
-      const pdfLines: PdfLine[] = (lns ?? []).map((l: any) => ({
+      const pdfLines: PdfLine[] = (lns ?? []).map((l: Tables<"devis_lines">) => ({
         description: l.description,
         quantity: Number(l.quantity ?? 0),
         unit: l.unit ?? null,
@@ -316,7 +325,7 @@ function Dashboard() {
         sent_at: _sa,
         last_email_error: _le,
         ...header
-      } = src as any;
+      } = src as Tables<"devis">;
       const issue = todayISO();
       const until = new Date(issue);
       const validity = Math.max(
@@ -345,10 +354,12 @@ function Dashboard() {
         .order("sort_order");
       if (lErr) throw lErr;
       if (lines && lines.length) {
-        const newLines = lines.map(({ id: _lid, devis_id: _did, ...rest }: any) => ({
-          ...rest,
-          devis_id: created.id,
-        }));
+        const newLines = lines.map(
+          ({ id: _lid, devis_id: _did, ...rest }: Tables<"devis_lines">) => ({
+            ...rest,
+            devis_id: created.id,
+          }),
+        );
         const { error: liErr } = await supabase.from("devis_lines").insert(newLines);
         if (liErr) throw liErr;
       }
@@ -781,10 +792,10 @@ function SortableTh({
   align = "left",
 }: {
   label: string;
-  k: "devis_number" | "client" | "issue_date" | "validity_until" | "total_ttc" | "status";
+  k: SortColumn;
   sortKey: string;
   sortDir: "asc" | "desc";
-  onClick: (k: any) => void;
+  onClick: (k: SortColumn) => void;
   align?: "left" | "right";
 }) {
   const active = sortKey === k;

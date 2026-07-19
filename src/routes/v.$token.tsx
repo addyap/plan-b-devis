@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import brandLogo from "@/assets/plan-b-logo.png";
 import { L, type Lang } from "@/lib/i18n";
 import { Download, Loader2 } from "lucide-react";
@@ -305,7 +306,12 @@ function PublicDevisView() {
         setLoading(false);
         return;
       }
-      const payload = data as { devis: any; lines: any[]; client: any; profile: any } | null;
+      const payload = data as {
+        devis: Tables<"devis">;
+        lines: Tables<"devis_lines">[];
+        client: Tables<"clients"> | null;
+        profile: Tables<"business_profile"> | null;
+      } | null;
       if (!payload || !payload.devis) {
         setNotFound(true);
         setLoading(false);
@@ -323,10 +329,14 @@ function PublicDevisView() {
         payment_methods: dd.payment_methods ?? [],
         legal_mentions: dd.legal_mentions ?? [],
         mission_phases: dd.mission_phases ?? [],
-        payment_schedule: Array.isArray(dd.payment_schedule) ? dd.payment_schedule : [],
+        // payment_schedule is jsonb, so the generated row type is Json — narrow
+        // it to the shape the devis editor writes.
+        payment_schedule: Array.isArray(dd.payment_schedule)
+          ? (dd.payment_schedule as unknown as ScheduleRow[])
+          : [],
       } as Devis);
       setLines(
-        ((payload.lines ?? []) as any[]).map((x) => ({
+        (payload.lines ?? []).map((x) => ({
           line_type: (x.line_type ?? "prestation") as LineType,
           description: x.description ?? "",
           details: x.details ?? null,

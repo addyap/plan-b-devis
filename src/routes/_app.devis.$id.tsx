@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,6 +50,9 @@ import {
 export const Route = createFileRoute("/_app/devis/$id")({
   component: DevisEditor,
 });
+
+/** Error shape the send-devis edge function returns in its response body. */
+type EdgeFnResult = { error?: string };
 
 type LineType = "produit" | "prestation" | "forfait" | "moe" | "remise";
 type DiscountType = "percent" | "amount";
@@ -288,7 +292,7 @@ function DevisEditor() {
         supabase.from("service_presets").select("*").order("sort_order"),
       ]);
 
-      const dd = d.data as any;
+      const dd = d.data as Tables<"devis"> | null;
       if (dd) {
         setDevis({
           id: dd.id,
@@ -302,9 +306,9 @@ function DevisEditor() {
           project_start: dd.project_start,
           project_duration: dd.project_duration,
           notes: dd.notes,
-          global_discount_type: dd.global_discount_type ?? "percent",
+          global_discount_type: (dd.global_discount_type ?? "percent") as DiscountType,
           global_discount_value: Number(dd.global_discount_value ?? 0),
-          deposit_type: dd.deposit_type ?? "percent",
+          deposit_type: (dd.deposit_type ?? "percent") as DiscountType,
           deposit_value: Number(dd.deposit_value ?? 0),
           deposit_amount: dd.deposit_amount,
           payment_terms_preset: dd.payment_terms_preset,
@@ -324,20 +328,24 @@ function DevisEditor() {
           surface_m2: dd.surface_m2 != null ? Number(dd.surface_m2) : null,
           works_budget_ht: dd.works_budget_ht != null ? Number(dd.works_budget_ht) : null,
           mission_phases: dd.mission_phases ?? [],
-          payment_schedule: Array.isArray(dd.payment_schedule) ? dd.payment_schedule : [],
+          // payment_schedule is jsonb, so the generated row type is Json — narrow
+          // it to the shape the editor writes.
+          payment_schedule: Array.isArray(dd.payment_schedule)
+            ? (dd.payment_schedule as unknown as ScheduleRow[])
+            : [],
           share_token: dd.share_token ?? null,
         });
       }
       setLines(
-        ((l.data ?? []) as any[]).map((x) => ({
+        ((l.data ?? []) as Tables<"devis_lines">[]).map((x) => ({
           id: x.id,
-          line_type: x.line_type ?? "prestation",
+          line_type: (x.line_type ?? "prestation") as LineType,
           description: x.description ?? "",
           details: x.details ?? "",
           quantity: Number(x.quantity ?? 1),
           unit: x.unit ?? "forfait",
           unit_price_ht: Number(x.unit_price_ht ?? 0),
-          discount_type: x.discount_type ?? "percent",
+          discount_type: (x.discount_type ?? "percent") as DiscountType,
           discount_value: Number(x.discount_value ?? 0),
           vat_rate: Number(x.vat_rate ?? 20),
           sort_order: x.sort_order ?? 0,
@@ -440,7 +448,7 @@ function DevisEditor() {
         unit_price_ht: 0,
         discount_type: "percent",
         discount_value: 0,
-        vat_rate: Number((profile as any)?.vat_rate ?? 20),
+        vat_rate: Number((profile as Tables<"business_profile"> | null)?.vat_rate ?? 20),
         sort_order: lines.length,
         mission_code: null,
         pricing_mode: "amount",
@@ -706,8 +714,9 @@ function DevisEditor() {
       const { data, error } = await supabase.functions.invoke("send-devis", {
         body: { devis_id: id, to: email, pdf_base64: b64, filename: `${devis.devis_number}.pdf` },
       });
-      if (error || (data && (data as any).error)) {
-        const msg = error?.message || (data as any)?.error || t("factures.send_failed");
+      if (error || (data && (data as EdgeFnResult).error)) {
+        const msg =
+          error?.message || (data as EdgeFnResult | null)?.error || t("factures.send_failed");
         await supabase.from("devis").update({ last_email_error: msg }).eq("id", id);
         toast.error(`Email: ${msg}`);
       } else {

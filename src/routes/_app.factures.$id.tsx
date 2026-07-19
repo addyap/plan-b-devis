@@ -25,6 +25,9 @@ export const Route = createFileRoute("/_app/factures/$id")({
   component: FactureEditor,
 });
 
+/** Error shape the send-facture edge function returns in its response body. */
+type EdgeFnResult = { error?: string };
+
 type Facture = {
   id: string;
   facture_number: string;
@@ -189,8 +192,9 @@ function FactureEditor() {
           filename: `${fac.facture_number}.pdf`,
         },
       });
-      if (error || (data && (data as any).error)) {
-        const msg = error?.message || (data as any)?.error || t("factures.send_failed");
+      if (error || (data && (data as EdgeFnResult).error)) {
+        const msg =
+          error?.message || (data as EdgeFnResult | null)?.error || t("factures.send_failed");
         await supabase.from("factures").update({ last_email_error: msg }).eq("id", id);
         toast.error(`${t("factures.send_failed")}: ${msg}`);
       } else {
