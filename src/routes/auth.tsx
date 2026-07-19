@@ -117,14 +117,14 @@ function AuthPage() {
       <main className="flex-1 grid place-items-center px-4 py-10">
         <div className="w-full max-w-sm">
           <div className="flex flex-col items-center text-center mb-8">
-            <div className="size-20 rounded-md overflow-hidden bg-[#2E1011] p-2 shadow">
+            <div className="size-20 rounded-md overflow-hidden bg-[#2E1011] p-2 shadow ring-1 ring-white/10">
               <img src={brandLogo} alt="Plan B Côte d'Azur" className="size-full object-contain" />
             </div>
-            <h1 className="mt-5 text-2xl font-serif font-semibold tracking-tight">{t("title")}</h1>
-            <p className="text-sm text-neutral-500 mt-1">{t("subtitle")}</p>
+            <h1 className="mt-5 text-2xl font-serif font-semibold tracking-tight text-foreground">{t("title")}</h1>
+            <p className="text-sm text-muted-foreground mt-1">{t("subtitle")}</p>
           </div>
 
-          <form onSubmit={onSubmit} className="space-y-4 bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
+          <form onSubmit={onSubmit} className="space-y-4 bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-sm">
             <div className="space-y-1.5">
               <Label htmlFor="email" className="text-xs">{t("email")}</Label>
               <Input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
