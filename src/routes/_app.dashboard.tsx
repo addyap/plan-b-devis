@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { fmtDate, fmtEUR, todayISO, type Locale } from "@/lib/format";
-import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, Download, FileText, Plus, Search, Sheet, TrendingUp, Wallet, Clock } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, Copy, Download, FileText, Plus, Search, Sheet, TrendingUp, Wallet, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { generateDevisPdf, type PdfClient, type PdfDevis, type PdfLine, type PdfProfile } from "@/lib/pdf";
 
@@ -200,7 +200,7 @@ function Dashboard() {
     try {
       const [{ data: dev, error: dErr }, { data: lns, error: lErr }, { data: prof, error: pErr }] = await Promise.all([
         supabase.from("devis").select("*, client:clients(*)").eq("id", devisId).maybeSingle(),
-        supabase.from("devis_lines").select("*").eq("devis_id", devisId).order("position"),
+        supabase.from("devis_lines").select("*").eq("devis_id", devisId).order("sort_order"),
         supabase.from("business_profile").select("*").limit(1).maybeSingle(),
       ]);
       if (dErr || lErr || pErr || !dev || !prof) throw new Error(dErr?.message || lErr?.message || pErr?.message || "Missing data");
@@ -243,6 +243,39 @@ function Dashboard() {
       toast.success("PDF", { id: t0 });
     } catch (e) {
       toast.error(`PDF: ${(e as Error).message}`, { id: t0 });
+    }
+  };
+
+  const duplicateRow = async (devisId: string) => {
+    const t0 = toast.loading(lang === "en" ? "Duplicating…" : "Duplication…");
+    try {
+      const { data: numData, error: nErr } = await supabase.rpc("next_devis_number");
+      if (nErr) throw nErr;
+      const { data: src, error: sErr } = await supabase.from("devis").select("*").eq("id", devisId).maybeSingle();
+      if (sErr || !src) throw new Error(sErr?.message || "Missing devis");
+      const { id: _id, devis_number: _n, created_at: _c, updated_at: _u, share_token: _st, share_expires_at: _se, sent_at: _sa, last_email_error: _le, ...header } = src as any;
+      const issue = todayISO();
+      const until = new Date(issue);
+      const validity = Math.max(1, Math.round((new Date(src.validity_until).getTime() - new Date(src.issue_date).getTime()) / 86400000) || 90);
+      until.setDate(until.getDate() + validity);
+      const { data: created, error: iErr } = await supabase
+        .from("devis")
+        .insert({ ...header, devis_number: numData as string, issue_date: issue, validity_until: until.toISOString().slice(0, 10), status: "draft" })
+        .select("id")
+        .single();
+      if (iErr || !created) throw new Error(iErr?.message || "Insert failed");
+      const { data: lines, error: lErr } = await supabase.from("devis_lines").select("*").eq("devis_id", devisId).order("sort_order");
+      if (lErr) throw lErr;
+      if (lines && lines.length) {
+        const newLines = lines.map(({ id: _lid, devis_id: _did, ...rest }: any) => ({ ...rest, devis_id: created.id }));
+        const { error: liErr } = await supabase.from("devis_lines").insert(newLines);
+        if (liErr) throw liErr;
+      }
+      toast.success(lang === "en" ? "Duplicated" : "Dupliqué", { id: t0 });
+      navigate({ to: "/devis/$id", params: { id: created.id } });
+      refetch();
+    } catch (e) {
+      toast.error((e as Error).message, { id: t0 });
     }
   };
 
@@ -409,7 +442,7 @@ function Dashboard() {
               <SortableTh label={t("dashboard.col_validity")} k="validity_until" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
               <SortableTh label={t("dashboard.col_total")} k="total_ttc" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
               <SortableTh label={t("dashboard.col_status")} k="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-              <th className="px-4 py-3 w-12"></th>
+              <th className="px-4 py-3 w-24"></th>
             </tr>
           </thead>
           <tbody>
@@ -428,7 +461,16 @@ function Dashboard() {
                 <td className="px-4 py-3">
                   <Badge className={STATUS_STYLES[d.status]} variant="secondary">{t(`status.${d.status}`)}</Badge>
                 </td>
-                <td className="px-2 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                <td className="px-2 py-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={lang === "en" ? "Duplicate" : "Dupliquer"}
+                    title={lang === "en" ? "Duplicate" : "Dupliquer"}
+                    onClick={() => duplicateRow(d.id)}
+                  >
+                    <Copy className="size-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -472,7 +514,10 @@ function Dashboard() {
                 <div className="text-lg font-semibold tabular-nums">{fmtEUR(Number(d.total_ttc), lang)}</div>
               </div>
             </div>
-            <div className="mt-3 flex justify-end" onClick={(e) => e.stopPropagation()}>
+            <div className="mt-3 flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+              <Button variant="outline" size="sm" onClick={() => duplicateRow(d.id)}>
+                <Copy className="size-4" /> {lang === "en" ? "Duplicate" : "Dupliquer"}
+              </Button>
               <Button variant="outline" size="sm" onClick={() => downloadRow(d.id)}>
                 <Download className="size-4" /> {t("devis.pdf")}
               </Button>
