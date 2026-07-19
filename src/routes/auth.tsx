@@ -149,7 +149,7 @@ function AuthPage() {
             </button>
           </form>
 
-          <p className="text-[11px] text-muted-foreground/70 text-center mt-4">{t("no_signup")}</p>
+          
         </div>
       </main>
     </div>
