@@ -200,7 +200,7 @@ function Dashboard() {
     try {
       const [{ data: dev, error: dErr }, { data: lns, error: lErr }, { data: prof, error: pErr }] = await Promise.all([
         supabase.from("devis").select("*, client:clients(*)").eq("id", devisId).maybeSingle(),
-        supabase.from("devis_lines").select("*").eq("devis_id", devisId).order("position"),
+        supabase.from("devis_lines").select("*").eq("devis_id", devisId).order("sort_order"),
         supabase.from("business_profile").select("*").limit(1).maybeSingle(),
       ]);
       if (dErr || lErr || pErr || !dev || !prof) throw new Error(dErr?.message || lErr?.message || pErr?.message || "Missing data");
