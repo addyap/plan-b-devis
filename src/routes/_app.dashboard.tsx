@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { fmtDate, fmtEUR, todayISO, type Locale } from "@/lib/format";
-import { Download, Plus, Search } from "lucide-react";
+import { AlertTriangle, Download, FileText, Plus, Search, TrendingUp, Wallet, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { generateDevisPdf, type PdfClient, type PdfDevis, type PdfLine, type PdfProfile } from "@/lib/pdf";
 
@@ -26,6 +26,8 @@ type DevisRow = {
   client: { name: string } | null;
 };
 
+type FactureLite = { devis_id: string | null };
+
 const STATUS_STYLES: Record<DevisRow["status"], string> = {
   draft: "bg-muted text-muted-foreground",
   sent: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200",
@@ -33,6 +35,10 @@ const STATUS_STYLES: Record<DevisRow["status"], string> = {
   declined: "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200",
   expired: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200",
 };
+
+function daysBetween(a: Date, b: Date) {
+  return Math.round((a.getTime() - b.getTime()) / 86400000);
+}
 
 function Dashboard() {
   const { t, i18n } = useTranslation();
@@ -62,6 +68,20 @@ function Dashboard() {
     },
   });
 
+  const { data: factures } = useQuery({
+    queryKey: ["factures-lite"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("factures").select("devis_id");
+      if (error) throw error;
+      return (data ?? []) as FactureLite[];
+    },
+  });
+
+  const invoicedDevisIds = useMemo(
+    () => new Set((factures ?? []).map((f) => f.devis_id).filter(Boolean) as string[]),
+    [factures],
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (data ?? []).filter((d) => {
@@ -75,10 +95,57 @@ function Dashboard() {
   }, [data, statusFilter, search]);
 
   const yr = new Date().getFullYear();
-  const acceptedThisYear = (data ?? []).filter(
+  const rows = data ?? [];
+  const acceptedThisYear = rows.filter(
     (d) => d.status === "accepted" && new Date(d.issue_date).getFullYear() === yr,
   );
   const acceptedTotal = acceptedThisYear.reduce((s, d) => s + Number(d.total_ttc), 0);
+
+  // KPIs
+  const pipelineValue = rows
+    .filter((d) => d.status === "draft" || d.status === "sent")
+    .reduce((s, d) => s + Number(d.total_ttc), 0);
+  const sentCount = rows.filter((d) => d.status === "sent" || d.status === "accepted" || d.status === "declined").length;
+  const acceptedCount = rows.filter((d) => d.status === "accepted").length;
+  const winRate = sentCount > 0 ? Math.round((acceptedCount / sentCount) * 100) : 0;
+  const readyToInvoice = rows.filter((d) => d.status === "accepted" && !invoicedDevisIds.has(d.id));
+  const readyToInvoiceTotal = readyToInvoice.reduce((s, d) => s + Number(d.total_ttc), 0);
+
+  // Expiring soon: sent, validity within 14 days
+  const now = new Date();
+  const expiringSoon = rows
+    .filter((d) => d.status === "sent")
+    .map((d) => ({ ...d, daysLeft: daysBetween(new Date(d.validity_until), now) }))
+    .filter((d) => d.daysLeft >= 0 && d.daysLeft <= 14)
+    .sort((a, b) => a.daysLeft - b.daysLeft);
+
+  // 12-month chart data (issued vs accepted, by issue_date)
+  const chart = useMemo(() => {
+    const months: { key: string; label: string; issued: number; accepted: number }[] = [];
+    const base = new Date(now.getFullYear(), now.getMonth(), 1);
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
+      months.push({
+        key: `${d.getFullYear()}-${d.getMonth()}`,
+        label: d.toLocaleDateString(lang === "en" ? "en-GB" : "fr-FR", { month: "short" }),
+        issued: 0,
+        accepted: 0,
+      });
+    }
+    const idx = new Map(months.map((m, i) => [m.key, i]));
+    for (const d of rows) {
+      const dt = new Date(d.issue_date);
+      const key = `${dt.getFullYear()}-${dt.getMonth()}`;
+      const i = idx.get(key);
+      if (i === undefined) continue;
+      months[i].issued += Number(d.total_ttc);
+      if (d.status === "accepted") months[i].accepted += Number(d.total_ttc);
+    }
+    return months;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, lang]);
+
+  const chartMax = Math.max(1, ...chart.map((m) => Math.max(m.issued, m.accepted)));
 
   const newDevis = async () => {
     const { data: numData } = await supabase.rpc("next_devis_number");
@@ -171,6 +238,110 @@ function Dashboard() {
         <Button onClick={newDevis} size="lg">
           <Plus className="size-4" /> {t("dashboard.new")}
         </Button>
+      </div>
+
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KpiCard
+          icon={<Wallet className="size-4" />}
+          label={lang === "en" ? "Pipeline (draft + sent)" : "Pipeline (brouillon + envoyé)"}
+          value={fmtEUR(pipelineValue, lang)}
+          sub={`${rows.filter((d) => d.status === "draft" || d.status === "sent").length} ${lang === "en" ? "devis" : "devis"}`}
+        />
+        <KpiCard
+          icon={<TrendingUp className="size-4" />}
+          label={lang === "en" ? "Win rate" : "Taux d'acceptation"}
+          value={`${winRate}%`}
+          sub={`${acceptedCount}/${sentCount} ${lang === "en" ? "responded" : "répondus"}`}
+        />
+        <KpiCard
+          icon={<FileText className="size-4" />}
+          label={lang === "en" ? "Ready to invoice" : "À facturer"}
+          value={fmtEUR(readyToInvoiceTotal, lang)}
+          sub={`${readyToInvoice.length} ${lang === "en" ? "devis accepted" : "devis acceptés"}`}
+          accent={readyToInvoice.length > 0}
+        />
+        <KpiCard
+          icon={<Clock className="size-4" />}
+          label={lang === "en" ? "Expiring ≤14d" : "Expire ≤14j"}
+          value={String(expiringSoon.length)}
+          sub={
+            expiringSoon.length
+              ? fmtEUR(expiringSoon.reduce((s, d) => s + Number(d.total_ttc), 0), lang)
+              : "—"
+          }
+          accent={expiringSoon.length > 0}
+        />
+      </div>
+
+      {/* Action lists + chart */}
+      <div className="grid lg:grid-cols-3 gap-4">
+        <ActionList
+          title={lang === "en" ? "Expiring soon" : "Expirent bientôt"}
+          icon={<AlertTriangle className="size-4 text-amber-600" />}
+          empty={lang === "en" ? "Nothing expiring in 14 days." : "Aucun devis n'expire dans 14 jours."}
+          items={expiringSoon.slice(0, 6).map((d) => ({
+            id: d.id,
+            primary: d.client?.name ?? d.devis_number,
+            secondary: d.devis_number,
+            right: (
+              <div className="text-right">
+                <div className="text-xs text-muted-foreground">{fmtDate(d.validity_until, lang)}</div>
+                <div className={`text-xs font-medium ${d.daysLeft <= 3 ? "text-rose-600" : "text-amber-600"}`}>
+                  {d.daysLeft === 0
+                    ? lang === "en" ? "today" : "aujourd'hui"
+                    : `${d.daysLeft}${lang === "en" ? "d" : "j"}`}
+                </div>
+              </div>
+            ),
+          }))}
+          onOpen={(id) => navigate({ to: "/devis/$id", params: { id } })}
+        />
+        <ActionList
+          title={lang === "en" ? "Ready to invoice" : "À facturer"}
+          icon={<FileText className="size-4 text-emerald-600" />}
+          empty={lang === "en" ? "No accepted devis awaiting invoicing." : "Aucun devis accepté à facturer."}
+          items={readyToInvoice.slice(0, 6).map((d) => ({
+            id: d.id,
+            primary: d.client?.name ?? d.devis_number,
+            secondary: d.devis_number,
+            right: (
+              <div className="text-right text-sm font-medium tabular-nums">
+                {fmtEUR(Number(d.total_ttc), lang)}
+              </div>
+            ),
+          }))}
+          onOpen={(id) => navigate({ to: "/devis/$id", params: { id } })}
+        />
+        <div className="border rounded-xl bg-card p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="size-4 text-muted-foreground" />
+            <h3 className="font-medium text-sm">
+              {lang === "en" ? "Last 12 months" : "12 derniers mois"}
+            </h3>
+          </div>
+          <div className="flex items-end gap-1.5 h-32">
+            {chart.map((m) => (
+              <div key={m.key} className="flex-1 flex flex-col items-center gap-1 group">
+                <div className="w-full flex items-end justify-center gap-0.5 flex-1" title={`${m.label} — ${lang === "en" ? "Issued" : "Émis"}: ${fmtEUR(m.issued, lang)} · ${lang === "en" ? "Accepted" : "Acceptés"}: ${fmtEUR(m.accepted, lang)}`}>
+                  <div
+                    className="w-1/2 bg-muted rounded-t"
+                    style={{ height: `${(m.issued / chartMax) * 100}%`, minHeight: m.issued > 0 ? 2 : 0 }}
+                  />
+                  <div
+                    className="w-1/2 bg-primary rounded-t"
+                    style={{ height: `${(m.accepted / chartMax) * 100}%`, minHeight: m.accepted > 0 ? 2 : 0 }}
+                  />
+                </div>
+                <div className="text-[10px] text-muted-foreground">{m.label}</div>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-3 mt-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5"><span className="size-2 rounded-sm bg-muted inline-block" /> {lang === "en" ? "Issued" : "Émis"}</span>
+            <span className="flex items-center gap-1.5"><span className="size-2 rounded-sm bg-primary inline-block" /> {lang === "en" ? "Accepted" : "Acceptés"}</span>
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -279,6 +450,74 @@ function Dashboard() {
         ))}
       </div>
 
+    </div>
+  );
+}
+
+function KpiCard({
+  icon,
+  label,
+  value,
+  sub,
+  accent,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub?: string;
+  accent?: boolean;
+}) {
+  return (
+    <div className={`border rounded-xl bg-card p-4 ${accent ? "ring-1 ring-primary/40" : ""}`}>
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        {icon}
+        <span className="truncate">{label}</span>
+      </div>
+      <div className="mt-2 text-2xl font-semibold tabular-nums">{value}</div>
+      {sub && <div className="text-xs text-muted-foreground mt-1 truncate">{sub}</div>}
+    </div>
+  );
+}
+
+function ActionList({
+  title,
+  icon,
+  items,
+  empty,
+  onOpen,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  items: { id: string; primary: string; secondary: string; right: React.ReactNode }[];
+  empty: string;
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <div className="border rounded-xl bg-card p-4">
+      <div className="flex items-center gap-2 mb-3">
+        {icon}
+        <h3 className="font-medium text-sm">{title}</h3>
+        <span className="ml-auto text-xs text-muted-foreground">{items.length}</span>
+      </div>
+      {items.length === 0 ? (
+        <div className="text-xs text-muted-foreground py-6 text-center">{empty}</div>
+      ) : (
+        <ul className="divide-y">
+          {items.map((it) => (
+            <li
+              key={it.id}
+              className="py-2 flex items-center gap-3 cursor-pointer hover:bg-muted/40 -mx-2 px-2 rounded"
+              onClick={() => onOpen(it.id)}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium truncate">{it.primary}</div>
+                <div className="text-xs text-muted-foreground font-mono">{it.secondary}</div>
+              </div>
+              {it.right}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
