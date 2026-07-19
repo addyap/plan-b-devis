@@ -461,7 +461,16 @@ function Dashboard() {
                 <td className="px-4 py-3">
                   <Badge className={STATUS_STYLES[d.status]} variant="secondary">{t(`status.${d.status}`)}</Badge>
                 </td>
-                <td className="px-2 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                <td className="px-2 py-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={lang === "en" ? "Duplicate" : "Dupliquer"}
+                    title={lang === "en" ? "Duplicate" : "Dupliquer"}
+                    onClick={() => duplicateRow(d.id)}
+                  >
+                    <Copy className="size-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
