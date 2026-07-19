@@ -69,7 +69,9 @@ function AuthPage() {
     supabase.auth.getSession().then(({ data }) => {
       if (active && data.session) navigate({ to: "/dashboard", replace: true });
     });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [navigate]);
 
   const t = (k: keyof typeof T) => T[k][lang];
@@ -81,7 +83,9 @@ function AuthPage() {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setLoading(false);
     if (error) {
-      const text = /invalid|credentials/i.test(error.message) ? t("bad_credentials") : error.message;
+      const text = /invalid|credentials/i.test(error.message)
+        ? t("bad_credentials")
+        : error.message;
       setMsg({ kind: "err", text });
       return;
     }
@@ -90,7 +94,10 @@ function AuthPage() {
 
   const onReset = async () => {
     setMsg(null);
-    if (!email.trim()) { setMsg({ kind: "err", text: t("reset_need_email") }); return; }
+    if (!email.trim()) {
+      setMsg({ kind: "err", text: t("reset_need_email") });
+      return;
+    }
     const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/auth` : undefined;
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
     if (error) setMsg({ kind: "err", text: error.message });
@@ -120,36 +127,73 @@ function AuthPage() {
             <div className="size-20 rounded-md overflow-hidden bg-[#2E1011] p-2 shadow ring-1 ring-white/10">
               <img src={brandLogo} alt="Plan B Côte d'Azur" className="size-full object-contain" />
             </div>
-            <h1 className="mt-5 text-2xl font-serif font-semibold tracking-tight text-foreground">{t("title")}</h1>
+            <h1 className="mt-5 text-2xl font-serif font-semibold tracking-tight text-foreground">
+              {t("title")}
+            </h1>
             <p className="text-sm text-muted-foreground mt-1">{t("subtitle")}</p>
           </div>
 
-          <form onSubmit={onSubmit} className="space-y-4 bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-sm">
+          <form
+            onSubmit={onSubmit}
+            className="space-y-4 bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-sm"
+          >
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-xs">{t("email")}</Label>
-              <Input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Label htmlFor="email" className="text-xs">
+                {t("email")}
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-xs">{t("password")}</Label>
-              <Input id="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+              <Label htmlFor="password" className="text-xs">
+                {t("password")}
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
 
             {msg && (
-              <div className={`text-xs rounded-md px-3 py-2 ${msg.kind === "err" ? "bg-[#9B2E2A]/10 text-[#9B2E2A]" : "bg-emerald-50 text-emerald-700"}`}>
+              <div
+                className={`text-xs rounded-md px-3 py-2 ${msg.kind === "err" ? "bg-[#9B2E2A]/10 text-[#9B2E2A]" : "bg-emerald-50 text-emerald-700"}`}
+              >
                 {msg.text}
               </div>
             )}
 
-            <Button type="submit" className="w-full bg-[#F2CB3C] text-[#2E1011] hover:bg-[#F2CB3C]/90" disabled={loading}>
-              {loading ? <><Loader2 className="size-4 animate-spin" /> {t("loading")}</> : t("submit")}
+            <Button
+              type="submit"
+              className="w-full bg-[#F2CB3C] text-[#2E1011] hover:bg-[#F2CB3C]/90"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" /> {t("loading")}
+                </>
+              ) : (
+                t("submit")
+              )}
             </Button>
 
-            <button type="button" onClick={onReset} className="block w-full text-center text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline">
+            <button
+              type="button"
+              onClick={onReset}
+              className="block w-full text-center text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+            >
               {t("forgot")}
             </button>
           </form>
-
-          
         </div>
       </main>
     </div>

@@ -103,24 +103,29 @@ type Client = {
 
 // ---------- Math (mirrors the editor's computeTotals) ----------
 
-function lineNetHT(l: Pick<Line, "quantity" | "unit_price_ht" | "discount_type" | "discount_value" | "line_type">) {
+function lineNetHT(
+  l: Pick<Line, "quantity" | "unit_price_ht" | "discount_type" | "discount_value" | "line_type">,
+) {
   const gross = Number(l.quantity || 0) * Number(l.unit_price_ht || 0);
   const sign = l.line_type === "remise" ? -1 : 1;
   const base = Math.abs(gross);
-  const disc = l.discount_type === "percent"
-    ? base * (Number(l.discount_value || 0) / 100)
-    : Number(l.discount_value || 0);
+  const disc =
+    l.discount_type === "percent"
+      ? base * (Number(l.discount_value || 0) / 100)
+      : Number(l.discount_value || 0);
   return +(sign * Math.max(0, base - disc)).toFixed(2);
 }
 
 function computeTotals(lines: Line[], d: Devis) {
-  const linesNet = lines.map(l => ({ vat: Number(l.vat_rate || 0), net: lineNetHT(l) }));
+  const linesNet = lines.map((l) => ({ vat: Number(l.vat_rate || 0), net: lineNetHT(l) }));
   const subtotalHT = +linesNet.reduce((s, x) => s + x.net, 0).toFixed(2);
   const positiveNet = linesNet.reduce((s, x) => (x.net > 0 ? s + x.net : s), 0);
-  const globalDiscAmt = positiveNet === 0 ? 0
-    : d.global_discount_type === "percent"
-      ? +(positiveNet * (Number(d.global_discount_value || 0) / 100)).toFixed(2)
-      : Math.min(Number(d.global_discount_value || 0), positiveNet);
+  const globalDiscAmt =
+    positiveNet === 0
+      ? 0
+      : d.global_discount_type === "percent"
+        ? +(positiveNet * (Number(d.global_discount_value || 0) / 100)).toFixed(2)
+        : Math.min(Number(d.global_discount_value || 0), positiveNet);
   const factor = positiveNet === 0 ? 1 : Math.max(0, 1 - globalDiscAmt / positiveNet);
 
   const vatByRate = new Map<number, number>();
@@ -132,18 +137,28 @@ function computeTotals(lines: Line[], d: Devis) {
     vatByRate.set(x.vat, +((vatByRate.get(x.vat) ?? 0) + vatLine).toFixed(2));
   }
   netAfter = +netAfter.toFixed(2);
-  const totalVAT = +Array.from(vatByRate.values()).reduce((s, v) => s + v, 0).toFixed(2);
+  const totalVAT = +Array.from(vatByRate.values())
+    .reduce((s, v) => s + v, 0)
+    .toFixed(2);
   const totalTTC = +(netAfter + totalVAT).toFixed(2);
 
-  const depositAmount = d.deposit_type === "percent"
-    ? +(totalTTC * (Number(d.deposit_value || 0) / 100)).toFixed(2)
-    : Math.min(Number(d.deposit_value || 0), totalTTC);
+  const depositAmount =
+    d.deposit_type === "percent"
+      ? +(totalTTC * (Number(d.deposit_value || 0) / 100)).toFixed(2)
+      : Math.min(Number(d.deposit_value || 0), totalTTC);
   const balance = +(totalTTC - depositAmount).toFixed(2);
 
   return {
-    subtotalHT, globalDiscAmt, netAfterDiscount: netAfter,
-    vatByRate: Array.from(vatByRate.entries()).filter(([, v]) => v !== 0).sort((a, b) => a[0] - b[0]),
-    totalVAT, totalTTC, depositAmount, balance,
+    subtotalHT,
+    globalDiscAmt,
+    netAfterDiscount: netAfter,
+    vatByRate: Array.from(vatByRate.entries())
+      .filter(([, v]) => v !== 0)
+      .sort((a, b) => a[0] - b[0]),
+    totalVAT,
+    totalTTC,
+    depositAmount,
+    balance,
   };
 }
 
@@ -153,7 +168,13 @@ const locale = (l: Lang) => (l === "fr" ? "fr-FR" : "en-GB");
 const money = (n: number, l: Lang) =>
   new Intl.NumberFormat(locale(l), { style: "currency", currency: "EUR" }).format(Number(n || 0));
 const dateF = (d: string | null | undefined, l: Lang) =>
-  d ? new Intl.DateTimeFormat(locale(l), { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(d)) : "—";
+  d
+    ? new Intl.DateTimeFormat(locale(l), {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(new Date(d))
+    : "—";
 
 // ---------- Static i18n bits specific to this view ----------
 
@@ -279,9 +300,17 @@ function PublicDevisView() {
   useEffect(() => {
     (async () => {
       const { data, error } = await supabase.rpc("get_public_devis", { p_token: token });
-      if (error || !data) { setNotFound(true); setLoading(false); return; }
+      if (error || !data) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
       const payload = data as { devis: any; lines: any[]; client: any; profile: any } | null;
-      if (!payload || !payload.devis) { setNotFound(true); setLoading(false); return; }
+      if (!payload || !payload.devis) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
       const dd = payload.devis;
       const lang: Lang = dd.language === "en" ? "en" : "fr";
       setDevis({
@@ -296,21 +325,23 @@ function PublicDevisView() {
         mission_phases: dd.mission_phases ?? [],
         payment_schedule: Array.isArray(dd.payment_schedule) ? dd.payment_schedule : [],
       } as Devis);
-      setLines(((payload.lines ?? []) as any[]).map(x => ({
-        line_type: (x.line_type ?? "prestation") as LineType,
-        description: x.description ?? "",
-        details: x.details ?? null,
-        quantity: Number(x.quantity ?? 1),
-        unit: x.unit ?? "forfait",
-        unit_price_ht: Number(x.unit_price_ht ?? 0),
-        discount_type: (x.discount_type ?? "percent") as DiscountType,
-        discount_value: Number(x.discount_value ?? 0),
-        vat_rate: Number(x.vat_rate ?? 20),
-        sort_order: Number(x.sort_order ?? 0),
-        mission_code: x.mission_code ?? null,
-        pricing_mode: (x.pricing_mode ?? "amount") as PricingMode,
-        percent_of_budget: Number(x.percent_of_budget ?? 0),
-      })));
+      setLines(
+        ((payload.lines ?? []) as any[]).map((x) => ({
+          line_type: (x.line_type ?? "prestation") as LineType,
+          description: x.description ?? "",
+          details: x.details ?? null,
+          quantity: Number(x.quantity ?? 1),
+          unit: x.unit ?? "forfait",
+          unit_price_ht: Number(x.unit_price_ht ?? 0),
+          discount_type: (x.discount_type ?? "percent") as DiscountType,
+          discount_value: Number(x.discount_value ?? 0),
+          vat_rate: Number(x.vat_rate ?? 20),
+          sort_order: Number(x.sort_order ?? 0),
+          mission_code: x.mission_code ?? null,
+          pricing_mode: (x.pricing_mode ?? "amount") as PricingMode,
+          percent_of_budget: Number(x.percent_of_budget ?? 0),
+        })),
+      );
       setClient((payload.client as Client) ?? null);
       setProfile((payload.profile as unknown as PdfProfile) ?? null);
       setLoading(false);
@@ -323,17 +354,29 @@ function PublicDevisView() {
   const linesView = useMemo<Line[]>(() => {
     if (!devis) return [];
     const b = Number(devis.works_budget_ht || 0);
-    return lines.map(l =>
+    return lines.map((l) =>
       l.pricing_mode === "percent"
-        ? { ...l, unit_price_ht: +(b * (Number(l.percent_of_budget || 0) / 100)).toFixed(2), quantity: 1, unit: "forfait" }
+        ? {
+            ...l,
+            unit_price_ht: +(b * (Number(l.percent_of_budget || 0) / 100)).toFixed(2),
+            quantity: 1,
+            unit: "forfait",
+          }
         : l,
     );
   }, [lines, devis?.works_budget_ht]);
 
-  const totals = useMemo(() => devis ? computeTotals(linesView, devis) : null, [linesView, devis]);
+  const totals = useMemo(
+    () => (devis ? computeTotals(linesView, devis) : null),
+    [linesView, devis],
+  );
 
   const honorairesHT = useMemo(
-    () => +linesView.filter(l => l.line_type === "moe").reduce((s, l) => s + lineNetHT(l), 0).toFixed(2),
+    () =>
+      +linesView
+        .filter((l) => l.line_type === "moe")
+        .reduce((s, l) => s + lineNetHT(l), 0)
+        .toFixed(2),
     [linesView],
   );
   const honorairesPct = useMemo(() => {
@@ -345,19 +388,27 @@ function PublicDevisView() {
     if (!devis || !profile || !totals) return;
     setDownloading(true);
     try {
-      const pdfLines: PdfLine[] = linesView.map(l => ({
+      const pdfLines: PdfLine[] = linesView.map((l) => ({
         description: [l.mission_code, l.description].filter(Boolean).join(" — "),
         quantity: l.quantity,
         unit: l.unit,
         unit_price_ht: l.unit_price_ht,
         line_total_ht: lineNetHT(l),
       }));
-      const site = [devis.site_address_line1, devis.site_address_line2, [devis.site_postcode, devis.site_city].filter(Boolean).join(" "), devis.site_country]
-        .filter(Boolean).join(", ") || null;
-      const schedule: SchedulePdfRow[] = (devis.payment_schedule ?? []).map(r => {
-        const amt = r.mode === "percent"
-          ? +(totals.totalTTC * (Number(r.value || 0) / 100)).toFixed(2)
-          : Number(r.value || 0);
+      const site =
+        [
+          devis.site_address_line1,
+          devis.site_address_line2,
+          [devis.site_postcode, devis.site_city].filter(Boolean).join(" "),
+          devis.site_country,
+        ]
+          .filter(Boolean)
+          .join(", ") || null;
+      const schedule: SchedulePdfRow[] = (devis.payment_schedule ?? []).map((r) => {
+        const amt =
+          r.mode === "percent"
+            ? +(totals.totalTTC * (Number(r.value || 0) / 100)).toFixed(2)
+            : Number(r.value || 0);
         const pct = totals.totalTTC > 0 ? +((amt / totals.totalTTC) * 100).toFixed(2) : 0;
         return { label: r.label, milestone: r.milestone, amount: amt, pct };
       });
@@ -376,7 +427,9 @@ function PublicDevisView() {
         notes: devis.notes,
         project_name: devis.project_name,
         site_address: site,
-        operation_type: devis.operation_type ? OPERATION_LABELS[devis.operation_type]?.[lang] ?? devis.operation_type : null,
+        operation_type: devis.operation_type
+          ? (OPERATION_LABELS[devis.operation_type]?.[lang] ?? devis.operation_type)
+          : null,
         surface_m2: devis.surface_m2,
         works_budget_ht: devis.works_budget_ht,
         mission_phases: devis.mission_phases,
@@ -384,17 +437,19 @@ function PublicDevisView() {
         honoraires_pct: honorairesPct,
         payment_schedule: schedule,
       };
-      const pdfClient: PdfClient = client ? {
-        name: client.name,
-        contact_name: client.contact_name,
-        address_line1: client.address_line1,
-        address_line2: client.address_line2,
-        postcode: client.postcode,
-        city: client.city,
-        country: client.country,
-        email: client.email,
-        phone: client.phone,
-      } : null;
+      const pdfClient: PdfClient = client
+        ? {
+            name: client.name,
+            contact_name: client.contact_name,
+            address_line1: client.address_line1,
+            address_line2: client.address_line2,
+            postcode: client.postcode,
+            city: client.city,
+            country: client.country,
+            email: client.email,
+            phone: client.phone,
+          }
+        : null;
       const pdf = await generateDevisPdf(pdfDevis, pdfLines, profile, pdfClient);
       pdf.save(`${devis.devis_number}.pdf`);
     } finally {
@@ -422,30 +477,34 @@ function PublicDevisView() {
     profile.address_line2,
     [profile.postcode, profile.city].filter(Boolean).join(" "),
     profile.country,
-  ].filter(Boolean).join(", ");
-  const clientAddr = client ? [
-    client.address_line1,
-    client.address_line2,
-    [client.postcode, client.city].filter(Boolean).join(" "),
-    client.country,
-  ].filter(Boolean).join(", ") : "";
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const clientAddr = client
+    ? [
+        client.address_line1,
+        client.address_line2,
+        [client.postcode, client.city].filter(Boolean).join(" "),
+        client.country,
+      ]
+        .filter(Boolean)
+        .join(", ")
+    : "";
   const siteAddr = [
     devis.site_address_line1,
     devis.site_address_line2,
     [devis.site_postcode, devis.site_city].filter(Boolean).join(" "),
     devis.site_country,
-  ].filter(Boolean).join(", ");
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-[#1a1a1a] font-sans antialiased pb-32">
       {/* Header band */}
       <header className="bg-[#2E1011] text-white">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 py-5 sm:py-7 flex items-center gap-4">
-          <img
-            src={brandLogo}
-            alt="Plan B Côte d'Azur"
-            className="h-12 sm:h-14 w-auto shrink-0"
-          />
+          <img src={brandLogo} alt="Plan B Côte d'Azur" className="h-12 sm:h-14 w-auto shrink-0" />
           <div className="min-w-0">
             <div className="text-[10px] sm:text-xs uppercase tracking-[0.18em] text-[#F2CB3C]">
               {tt("yourQuote", lang)}
@@ -462,11 +521,15 @@ function PublicDevisView() {
         {/* Meta line */}
         <section className="grid grid-cols-2 gap-3 text-sm">
           <div>
-            <div className="text-[11px] uppercase tracking-wider text-[#9B2E2A]">{tt("issued", lang)}</div>
+            <div className="text-[11px] uppercase tracking-wider text-[#9B2E2A]">
+              {tt("issued", lang)}
+            </div>
             <div className="font-medium">{dateF(devis.issue_date, lang)}</div>
           </div>
           <div>
-            <div className="text-[11px] uppercase tracking-wider text-[#9B2E2A]">{tt("validUntil", lang)}</div>
+            <div className="text-[11px] uppercase tracking-wider text-[#9B2E2A]">
+              {tt("validUntil", lang)}
+            </div>
             <div className="font-medium">{dateF(devis.validity_until, lang)}</div>
           </div>
         </section>
@@ -477,11 +540,21 @@ function PublicDevisView() {
             <div className="font-semibold text-[#2E1011]">
               {profile.trading_name || profile.legal_name || "Plan B Côte d'Azur"}
             </div>
-            {profile.legal_form && <div className="text-xs text-neutral-500">{profile.legal_form}</div>}
+            {profile.legal_form && (
+              <div className="text-xs text-neutral-500">{profile.legal_form}</div>
+            )}
             {issuerAddr && <div className="text-sm mt-1 text-neutral-700">{issuerAddr}</div>}
             <div className="text-xs text-neutral-500 mt-2 space-y-0.5">
-              {profile.siret && <div>{L.siret[lang]} : {profile.siret}</div>}
-              {profile.vat_number && <div>{L.vatNo[lang]} : {profile.vat_number}</div>}
+              {profile.siret && (
+                <div>
+                  {L.siret[lang]} : {profile.siret}
+                </div>
+              )}
+              {profile.vat_number && (
+                <div>
+                  {L.vatNo[lang]} : {profile.vat_number}
+                </div>
+              )}
               {profile.sender_email && <div className="break-all">{profile.sender_email}</div>}
             </div>
           </Card>
@@ -489,60 +562,91 @@ function PublicDevisView() {
             {client ? (
               <>
                 <div className="font-semibold text-[#2E1011]">{client.name}</div>
-                {client.contact_name && <div className="text-sm text-neutral-700">{client.contact_name}</div>}
+                {client.contact_name && (
+                  <div className="text-sm text-neutral-700">{client.contact_name}</div>
+                )}
                 {clientAddr && <div className="text-sm mt-1 text-neutral-700">{clientAddr}</div>}
                 <div className="text-xs text-neutral-500 mt-2 space-y-0.5">
                   {client.email && <div className="break-all">{client.email}</div>}
                   {client.phone && <div>{client.phone}</div>}
-                  {client.siret && <div>{L.siret[lang]} : {client.siret}</div>}
+                  {client.siret && (
+                    <div>
+                      {L.siret[lang]} : {client.siret}
+                    </div>
+                  )}
                 </div>
               </>
-            ) : <div className="text-sm text-neutral-500">—</div>}
+            ) : (
+              <div className="text-sm text-neutral-500">—</div>
+            )}
           </Card>
         </section>
 
         {/* Project */}
-        {(devis.project_name || siteAddr || devis.operation_type || devis.surface_m2 || devis.works_budget_ht || devis.mission_phases.length > 0 || devis.project_description) && (
+        {(devis.project_name ||
+          siteAddr ||
+          devis.operation_type ||
+          devis.surface_m2 ||
+          devis.works_budget_ht ||
+          devis.mission_phases.length > 0 ||
+          devis.project_description) && (
           <Card title={tt("project", lang)}>
             <div className="space-y-2">
               {devis.project_name && (
                 <div>
-                  <div className="text-[11px] uppercase tracking-wider text-[#9B2E2A]">{tt("project", lang)}</div>
+                  <div className="text-[11px] uppercase tracking-wider text-[#9B2E2A]">
+                    {tt("project", lang)}
+                  </div>
                   <div className="font-medium">{devis.project_name}</div>
                 </div>
               )}
               {siteAddr && (
                 <div>
-                  <div className="text-[11px] uppercase tracking-wider text-[#9B2E2A]">{tt("site", lang)}</div>
+                  <div className="text-[11px] uppercase tracking-wider text-[#9B2E2A]">
+                    {tt("site", lang)}
+                  </div>
                   <div className="text-sm">{siteAddr}</div>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3 text-sm">
                 {devis.operation_type && (
                   <div>
-                    <div className="text-[11px] uppercase tracking-wider text-[#9B2E2A]">{tt("operation", lang)}</div>
-                    <div>{OPERATION_LABELS[devis.operation_type]?.[lang] ?? devis.operation_type}</div>
+                    <div className="text-[11px] uppercase tracking-wider text-[#9B2E2A]">
+                      {tt("operation", lang)}
+                    </div>
+                    <div>
+                      {OPERATION_LABELS[devis.operation_type]?.[lang] ?? devis.operation_type}
+                    </div>
                   </div>
                 )}
                 {devis.surface_m2 != null && devis.surface_m2 > 0 && (
                   <div>
-                    <div className="text-[11px] uppercase tracking-wider text-[#9B2E2A]">{tt("surface", lang)}</div>
+                    <div className="text-[11px] uppercase tracking-wider text-[#9B2E2A]">
+                      {tt("surface", lang)}
+                    </div>
                     <div>{devis.surface_m2} m²</div>
                   </div>
                 )}
                 {devis.works_budget_ht != null && devis.works_budget_ht > 0 && (
                   <div className="col-span-2">
-                    <div className="text-[11px] uppercase tracking-wider text-[#9B2E2A]">{tt("works", lang)}</div>
+                    <div className="text-[11px] uppercase tracking-wider text-[#9B2E2A]">
+                      {tt("works", lang)}
+                    </div>
                     <div className="font-semibold">{money(devis.works_budget_ht, lang)}</div>
                   </div>
                 )}
               </div>
               {devis.mission_phases.length > 0 && (
                 <div>
-                  <div className="text-[11px] uppercase tracking-wider text-[#9B2E2A] mb-1">{tt("phases", lang)}</div>
+                  <div className="text-[11px] uppercase tracking-wider text-[#9B2E2A] mb-1">
+                    {tt("phases", lang)}
+                  </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {devis.mission_phases.map(p => (
-                      <span key={p} className="inline-flex items-center rounded-full bg-[#2E1011] text-[#F2CB3C] text-[11px] font-mono px-2 py-0.5">
+                    {devis.mission_phases.map((p) => (
+                      <span
+                        key={p}
+                        className="inline-flex items-center rounded-full bg-[#2E1011] text-[#F2CB3C] text-[11px] font-mono px-2 py-0.5"
+                      >
                         {p}
                       </span>
                     ))}
@@ -550,7 +654,9 @@ function PublicDevisView() {
                 </div>
               )}
               {devis.project_description && (
-                <p className="text-sm text-neutral-700 whitespace-pre-wrap pt-1">{devis.project_description}</p>
+                <p className="text-sm text-neutral-700 whitespace-pre-wrap pt-1">
+                  {devis.project_description}
+                </p>
               )}
             </div>
           </Card>
@@ -580,7 +686,9 @@ function PublicDevisView() {
                         {l.description || "—"}
                       </span>
                       {l.details && (
-                        <p className="text-[13px] text-neutral-600 mt-1 whitespace-pre-wrap">{l.details}</p>
+                        <p className="text-[13px] text-neutral-600 mt-1 whitespace-pre-wrap">
+                          {l.details}
+                        </p>
                       )}
                       {l.mission_code && MISSION_LABELS[l.mission_code] && !l.details && (
                         <p className="text-[12px] text-neutral-500 italic mt-0.5">
@@ -588,7 +696,9 @@ function PublicDevisView() {
                         </p>
                       )}
                     </div>
-                    <div className={`text-right shrink-0 tabular-nums font-semibold text-[15px] ${isDiscount ? "text-[#9B2E2A]" : "text-[#2E1011]"}`}>
+                    <div
+                      className={`text-right shrink-0 tabular-nums font-semibold text-[15px] ${isDiscount ? "text-[#9B2E2A]" : "text-[#2E1011]"}`}
+                    >
                       {money(lineHt, lang)}
                     </div>
                   </div>
@@ -601,22 +711,26 @@ function PublicDevisView() {
                     )}
                     {l.pricing_mode === "percent" && devis.works_budget_ht ? (
                       <span>
-                        {l.percent_of_budget}% {tt("ofWorks", lang)} ({money(l.unit_price_ht, lang)})
+                        {l.percent_of_budget}% {tt("ofWorks", lang)} ({money(l.unit_price_ht, lang)}
+                        )
                       </span>
                     ) : null}
                     {!isDiscount && Number(l.discount_value) > 0 && (
                       <span className="text-[#9B2E2A]">
-                        −{l.discount_type === "percent" ? `${l.discount_value}%` : money(l.discount_value, lang)}
+                        −
+                        {l.discount_type === "percent"
+                          ? `${l.discount_value}%`
+                          : money(l.discount_value, lang)}
                       </span>
                     )}
-                    <span className="ml-auto">{tt("vat", lang)} {l.vat_rate}%</span>
+                    <span className="ml-auto">
+                      {tt("vat", lang)} {l.vat_rate}%
+                    </span>
                   </div>
                 </li>
               );
             })}
-            {linesView.length === 0 && (
-              <li className="text-sm text-neutral-500 italic px-1">—</li>
-            )}
+            {linesView.length === 0 && <li className="text-sm text-neutral-500 italic px-1">—</li>}
           </ul>
         </section>
 
@@ -628,17 +742,17 @@ function PublicDevisView() {
           <dl className="divide-y divide-neutral-100 text-sm">
             <Row label={tt("subtotal", lang)} value={money(totals.subtotalHT, lang)} />
             {totals.globalDiscAmt > 0 && (
-              <Row label={tt("discount", lang)} value={`−${money(totals.globalDiscAmt, lang)}`} muted />
+              <Row
+                label={tt("discount", lang)}
+                value={`−${money(totals.globalDiscAmt, lang)}`}
+                muted
+              />
             )}
             <Row label={tt("netHt", lang)} value={money(totals.netAfterDiscount, lang)} />
             {totals.vatByRate.map(([rate, amt]) => (
               <Row key={rate} label={`${tt("vat", lang)} ${rate}%`} value={money(amt, lang)} />
             ))}
-            <Row
-              label={tt("totalTTC", lang)}
-              value={money(totals.totalTTC, lang)}
-              strong
-            />
+            <Row label={tt("totalTTC", lang)} value={money(totals.totalTTC, lang)} strong />
             {totals.depositAmount > 0 && (
               <>
                 <Row label={tt("deposit", lang)} value={money(totals.depositAmount, lang)} />
@@ -659,9 +773,10 @@ function PublicDevisView() {
           <Card title={tt("schedule", lang)}>
             <ul className="divide-y divide-neutral-100 -mx-1">
               {devis.payment_schedule.map((r, i) => {
-                const amt = r.mode === "percent"
-                  ? +(totals.totalTTC * (Number(r.value || 0) / 100)).toFixed(2)
-                  : Number(r.value || 0);
+                const amt =
+                  r.mode === "percent"
+                    ? +(totals.totalTTC * (Number(r.value || 0) / 100)).toFixed(2)
+                    : Number(r.value || 0);
                 const pct = totals.totalTTC > 0 ? Math.round((amt / totals.totalTTC) * 100) : 0;
                 return (
                   <li key={i} className="px-1 py-2.5 flex items-start gap-3">
@@ -671,7 +786,9 @@ function PublicDevisView() {
                     </div>
                     <div className="text-right shrink-0 tabular-nums">
                       <div className="font-semibold text-[#2E1011]">{money(amt, lang)}</div>
-                      <div className="text-[11px] text-neutral-500">{pct}% {tt("pctOfTotal", lang)}</div>
+                      <div className="text-[11px] text-neutral-500">
+                        {pct}% {tt("pctOfTotal", lang)}
+                      </div>
                     </div>
                   </li>
                 );
@@ -681,17 +798,24 @@ function PublicDevisView() {
         )}
 
         {/* Payment methods + terms */}
-        {(devis.payment_methods.length > 0 || devis.payment_terms_preset || devis.conditions_notes) && (
+        {(devis.payment_methods.length > 0 ||
+          devis.payment_terms_preset ||
+          devis.conditions_notes) && (
           <Card title={tt("paymentTerms", lang)}>
             {devis.payment_terms_preset && PAYMENT_TERMS_LABELS[devis.payment_terms_preset] && (
               <p className="text-sm">{PAYMENT_TERMS_LABELS[devis.payment_terms_preset][lang]}</p>
             )}
             {devis.payment_methods.length > 0 && (
               <div className="mt-2">
-                <div className="text-[11px] uppercase tracking-wider text-[#9B2E2A] mb-1">{tt("paymentMethods", lang)}</div>
+                <div className="text-[11px] uppercase tracking-wider text-[#9B2E2A] mb-1">
+                  {tt("paymentMethods", lang)}
+                </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {devis.payment_methods.map(m => (
-                    <span key={m} className="inline-flex rounded-full border border-[#2E1011]/20 text-[#2E1011] text-[12px] px-2.5 py-0.5">
+                  {devis.payment_methods.map((m) => (
+                    <span
+                      key={m}
+                      className="inline-flex rounded-full border border-[#2E1011]/20 text-[#2E1011] text-[12px] px-2.5 py-0.5"
+                    >
                       {PAYMENT_METHOD_LABELS[m]?.[lang] ?? m}
                     </span>
                   ))}
@@ -699,7 +823,9 @@ function PublicDevisView() {
               </div>
             )}
             {devis.conditions_notes && (
-              <p className="text-sm text-neutral-700 whitespace-pre-wrap mt-2">{devis.conditions_notes}</p>
+              <p className="text-sm text-neutral-700 whitespace-pre-wrap mt-2">
+                {devis.conditions_notes}
+              </p>
             )}
             {profile.iban && (
               <div className="text-xs text-neutral-500 mt-3">
@@ -724,7 +850,7 @@ function PublicDevisView() {
             <div className="uppercase tracking-wider text-[#9B2E2A] font-semibold text-[11px] mb-1">
               {tt("legal", lang)}
             </div>
-            {devis.legal_mentions.map(k => (
+            {devis.legal_mentions.map((k) => (
               <p key={k}>{LEGAL_MENTION_LABELS[k]?.[lang] ?? k}</p>
             ))}
           </section>
@@ -742,17 +868,27 @@ function PublicDevisView() {
       >
         <div className="mx-auto max-w-3xl px-4 py-3 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[10px] uppercase tracking-wider text-[#9B2E2A]">{tt("totalTTC", lang)}</div>
-            <div className="text-lg font-bold tabular-nums text-[#2E1011] leading-tight">{money(totals.totalTTC, lang)}</div>
+            <div className="text-[10px] uppercase tracking-wider text-[#9B2E2A]">
+              {tt("totalTTC", lang)}
+            </div>
+            <div className="text-lg font-bold tabular-nums text-[#2E1011] leading-tight">
+              {money(totals.totalTTC, lang)}
+            </div>
           </div>
           <button
             onClick={downloadPdf}
             disabled={downloading}
             className="inline-flex items-center justify-center gap-2 min-h-11 px-5 rounded-md bg-[#F2CB3C] text-[#2E1011] font-semibold text-sm shadow-sm hover:bg-[#e8c233] active:scale-[0.98] transition disabled:opacity-60"
           >
-            {downloading
-              ? (<><Loader2 className="size-4 animate-spin" /> {tt("generating", lang)}</>)
-              : (<><Download className="size-4" /> {tt("download", lang)}</>)}
+            {downloading ? (
+              <>
+                <Loader2 className="size-4 animate-spin" /> {tt("generating", lang)}
+              </>
+            ) : (
+              <>
+                <Download className="size-4" /> {tt("download", lang)}
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -763,19 +899,37 @@ function PublicDevisView() {
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
-      <div className="text-[11px] uppercase tracking-wider text-[#9B2E2A] font-semibold mb-2">{title}</div>
+      <div className="text-[11px] uppercase tracking-wider text-[#9B2E2A] font-semibold mb-2">
+        {title}
+      </div>
       {children}
     </div>
   );
 }
 
-function Row({ label, value, strong, muted }: { label: string; value: string; strong?: boolean; muted?: boolean }) {
+function Row({
+  label,
+  value,
+  strong,
+  muted,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+  muted?: boolean;
+}) {
   return (
-    <div className={`flex items-center justify-between px-4 py-2.5 ${strong ? "bg-[#2E1011] text-white" : ""}`}>
-      <dt className={`text-sm ${strong ? "font-semibold uppercase tracking-wider text-[11px]" : muted ? "text-neutral-500" : "text-neutral-700"}`}>
+    <div
+      className={`flex items-center justify-between px-4 py-2.5 ${strong ? "bg-[#2E1011] text-white" : ""}`}
+    >
+      <dt
+        className={`text-sm ${strong ? "font-semibold uppercase tracking-wider text-[11px]" : muted ? "text-neutral-500" : "text-neutral-700"}`}
+      >
         {label}
       </dt>
-      <dd className={`tabular-nums ${strong ? "text-lg font-bold" : "text-sm font-medium text-[#1a1a1a]"} ${muted ? "text-neutral-500" : ""}`}>
+      <dd
+        className={`tabular-nums ${strong ? "text-lg font-bold" : "text-sm font-medium text-[#1a1a1a]"} ${muted ? "text-neutral-500" : ""}`}
+      >
         {value}
       </dd>
     </div>

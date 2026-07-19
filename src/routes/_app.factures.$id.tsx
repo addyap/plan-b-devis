@@ -12,24 +12,47 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Download, Eye, Mail } from "lucide-react";
 import { fmtEUR, fmtDateTime, type Locale } from "@/lib/format";
 import { toast } from "sonner";
-import { generateFacturePdf, pdfToBase64, type PdfProfile, type PdfClient, type PdfFacture, type PdfLine } from "@/lib/pdf";
+import {
+  generateFacturePdf,
+  pdfToBase64,
+  type PdfProfile,
+  type PdfClient,
+  type PdfFacture,
+  type PdfLine,
+} from "@/lib/pdf";
 
 export const Route = createFileRoute("/_app/factures/$id")({
   component: FactureEditor,
 });
 
 type Facture = {
-  id: string; facture_number: string; client_id: string | null;
-  issue_date: string; due_date: string;
-  status: "draft"|"sent"|"paid"|"overdue"|"cancelled";
+  id: string;
+  facture_number: string;
+  client_id: string | null;
+  issue_date: string;
+  due_date: string;
+  status: "draft" | "sent" | "paid" | "overdue" | "cancelled";
   language: "en" | "fr";
-  project_description: string | null; project_start: string | null; project_duration: string | null;
-  subtotal_ht: number; vat_amount: number; total_ttc: number;
-  deposit_amount: number | null; notes: string | null;
+  project_description: string | null;
+  project_start: string | null;
+  project_duration: string | null;
+  subtotal_ht: number;
+  vat_amount: number;
+  total_ttc: number;
+  deposit_amount: number | null;
+  notes: string | null;
   sent_at: string | null;
 };
 
-type Line = { id?: string; description: string; quantity: number; unit: string; unit_price_ht: number; line_total_ht: number; sort_order: number };
+type Line = {
+  id?: string;
+  description: string;
+  quantity: number;
+  unit: string;
+  unit_price_ht: number;
+  line_total_ht: number;
+  sort_order: number;
+};
 
 function FactureEditor() {
   const { t, i18n } = useTranslation();
@@ -57,15 +80,27 @@ function FactureEditor() {
       setLines((l.data ?? []) as Line[]);
       setProfile(p.data as unknown as PdfProfile);
       if (fd?.client_id) {
-        const { data } = await supabase.from("clients").select("*").eq("id", fd.client_id).maybeSingle();
+        const { data } = await supabase
+          .from("clients")
+          .select("*")
+          .eq("id", fd.client_id)
+          .maybeSingle();
         setClient((data as PdfClient) ?? null);
       }
     })();
   }, [id]);
 
-  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
+  useEffect(
+    () => () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    },
+    [previewUrl],
+  );
 
-  const subtotal = useMemo(() => lines.reduce((s, l) => s + Number(l.quantity) * Number(l.unit_price_ht), 0), [lines]);
+  const subtotal = useMemo(
+    () => lines.reduce((s, l) => s + Number(l.quantity) * Number(l.unit_price_ht), 0),
+    [lines],
+  );
   const vatRate = profile?.vat_status === "tva_registered" ? Number(profile?.vat_rate ?? 0) : 0;
   const vatAmount = +(subtotal * (vatRate / 100)).toFixed(2);
   const totalTtc = +(subtotal + vatAmount).toFixed(2);
@@ -76,13 +111,28 @@ function FactureEditor() {
 
   const save = async (newStatus?: Facture["status"]) => {
     setSaving(true);
-    const { error } = await supabase.from("factures").update({
-      issue_date: fac.issue_date, due_date: fac.due_date, status: newStatus ?? fac.status, language: fac.language,
-      project_description: fac.project_description, project_start: fac.project_start || null, project_duration: fac.project_duration,
-      subtotal_ht: subtotal, vat_amount: vatAmount, total_ttc: totalTtc,
-      deposit_amount: fac.deposit_amount, notes: fac.notes,
-    }).eq("id", id);
-    if (error) { toast.error(error.message); setSaving(false); return false; }
+    const { error } = await supabase
+      .from("factures")
+      .update({
+        issue_date: fac.issue_date,
+        due_date: fac.due_date,
+        status: newStatus ?? fac.status,
+        language: fac.language,
+        project_description: fac.project_description,
+        project_start: fac.project_start || null,
+        project_duration: fac.project_duration,
+        subtotal_ht: subtotal,
+        vat_amount: vatAmount,
+        total_ttc: totalTtc,
+        deposit_amount: fac.deposit_amount,
+        notes: fac.notes,
+      })
+      .eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      setSaving(false);
+      return false;
+    }
     if (newStatus) setFac({ ...fac, status: newStatus });
     setSaving(false);
     toast.success(t("common.saved"));
@@ -90,13 +140,26 @@ function FactureEditor() {
   };
 
   const pdfFacture: PdfFacture = {
-    facture_number: fac.facture_number, issue_date: fac.issue_date, due_date: fac.due_date,
+    facture_number: fac.facture_number,
+    issue_date: fac.issue_date,
+    due_date: fac.due_date,
     language: fac.language,
-    project_description: fac.project_description, project_start: fac.project_start, project_duration: fac.project_duration,
-    subtotal_ht: subtotal, vat_amount: vatAmount, total_ttc: totalTtc,
-    deposit_amount: fac.deposit_amount, notes: fac.notes,
+    project_description: fac.project_description,
+    project_start: fac.project_start,
+    project_duration: fac.project_duration,
+    subtotal_ht: subtotal,
+    vat_amount: vatAmount,
+    total_ttc: totalTtc,
+    deposit_amount: fac.deposit_amount,
+    notes: fac.notes,
   };
-  const pdfLines: PdfLine[] = lines.map((l) => ({ description: l.description, quantity: Number(l.quantity), unit: l.unit, unit_price_ht: Number(l.unit_price_ht), line_total_ht: +(Number(l.quantity) * Number(l.unit_price_ht)).toFixed(2) }));
+  const pdfLines: PdfLine[] = lines.map((l) => ({
+    description: l.description,
+    quantity: Number(l.quantity),
+    unit: l.unit,
+    unit_price_ht: Number(l.unit_price_ht),
+    line_total_ht: +(Number(l.quantity) * Number(l.unit_price_ht)).toFixed(2),
+  }));
 
   const download = async () => {
     const doc = await generateFacturePdf(pdfFacture, pdfLines, profile, client);
@@ -119,7 +182,12 @@ function FactureEditor() {
       const doc = await generateFacturePdf(pdfFacture, pdfLines, profile, client);
       const b64 = await pdfToBase64(doc);
       const { data, error } = await supabase.functions.invoke("send-facture", {
-        body: { facture_id: id, to: client.email, pdf_base64: b64, filename: `${fac.facture_number}.pdf` },
+        body: {
+          facture_id: id,
+          to: client.email,
+          pdf_base64: b64,
+          filename: `${fac.facture_number}.pdf`,
+        },
       });
       if (error || (data && (data as any).error)) {
         const msg = error?.message || (data as any)?.error || t("factures.send_failed");
@@ -127,41 +195,92 @@ function FactureEditor() {
         toast.error(`${t("factures.send_failed")}: ${msg}`);
       } else {
         const now = new Date().toISOString();
-        await supabase.from("factures").update({ sent_at: now, status: "sent", last_email_error: null }).eq("id", id);
+        await supabase
+          .from("factures")
+          .update({ sent_at: now, status: "sent", last_email_error: null })
+          .eq("id", id);
         setFac({ ...fac, sent_at: now, status: "sent" });
         toast.success(t("factures.sent_to", { email: client.email }));
       }
-    } finally { setSending(false); }
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-4 justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate({ to: "/factures" })} aria-label={t("common.back")}><ArrowLeft className="size-4" /></Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate({ to: "/factures" })}
+            aria-label={t("common.back")}
+          >
+            <ArrowLeft className="size-4" />
+          </Button>
           <div>
-            <div className="text-xs text-muted-foreground uppercase tracking-wide">{t("factures.title")}</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wide">
+              {t("factures.title")}
+            </div>
             <h1 className="text-2xl font-semibold font-mono">{fac.facture_number}</h1>
           </div>
-          <Badge variant="secondary" className="ml-2">{t(`status.${fac.status}`)}</Badge>
-          {fac.sent_at && <span className="text-xs text-muted-foreground">{t("factures.sent_at", { when: fmtDateTime(fac.sent_at, uiLang) })}</span>}
+          <Badge variant="secondary" className="ml-2">
+            {t(`status.${fac.status}`)}
+          </Badge>
+          {fac.sent_at && (
+            <span className="text-xs text-muted-foreground">
+              {t("factures.sent_at", { when: fmtDateTime(fac.sent_at, uiLang) })}
+            </span>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={preview}><Eye className="size-4" /> {t("factures.preview")}</Button>
-          <Button variant="outline" onClick={download}><Download className="size-4" /> {t("factures.pdf")}</Button>
-          <Button variant="outline" onClick={send} disabled={sending}><Mail className="size-4" /> {sending ? t("factures.sending") : t("factures.send")}</Button>
-          <Button variant="outline" onClick={() => save("paid")} disabled={saving}>{t("factures.mark_paid")}</Button>
-          <Button onClick={() => save()} disabled={saving}>{saving ? t("common.saving") : t("common.save")}</Button>
+          <Button variant="outline" onClick={preview}>
+            <Eye className="size-4" /> {t("factures.preview")}
+          </Button>
+          <Button variant="outline" onClick={download}>
+            <Download className="size-4" /> {t("factures.pdf")}
+          </Button>
+          <Button variant="outline" onClick={send} disabled={sending}>
+            <Mail className="size-4" /> {sending ? t("factures.sending") : t("factures.send")}
+          </Button>
+          <Button variant="outline" onClick={() => save("paid")} disabled={saving}>
+            {t("factures.mark_paid")}
+          </Button>
+          <Button onClick={() => save()} disabled={saving}>
+            {saving ? t("common.saving") : t("common.save")}
+          </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="p-5 space-y-4 lg:col-span-2">
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label className="text-xs">{t("factures.issue_date")}</Label><Input type="date" value={fac.issue_date} onChange={(e) => update({ issue_date: e.target.value })} /></div>
-            <div className="space-y-1.5"><Label className="text-xs">{t("factures.due_date")}</Label><Input type="date" value={fac.due_date} onChange={(e) => update({ due_date: e.target.value })} /></div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t("factures.issue_date")}</Label>
+              <Input
+                type="date"
+                value={fac.issue_date}
+                onChange={(e) => update({ issue_date: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t("factures.due_date")}</Label>
+              <Input
+                type="date"
+                value={fac.due_date}
+                onChange={(e) => update({ due_date: e.target.value })}
+              />
+            </div>
           </div>
-          <div className="space-y-1.5"><Label className="text-xs">{t("factures.project_description")}</Label><Textarea rows={3} value={fac.project_description ?? ""} onChange={(e) => update({ project_description: e.target.value })} /></div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">{t("factures.project_description")}</Label>
+            <Textarea
+              rows={3}
+              value={fac.project_description ?? ""}
+              onChange={(e) => update({ project_description: e.target.value })}
+            />
+          </div>
 
           <div className="pt-4 border-t">
             <h2 className="font-semibold mb-3">{t("factures.line_items")}</h2>
@@ -171,8 +290,12 @@ function FactureEditor() {
                   <div className="col-span-6 text-sm">{l.description}</div>
                   <div className="col-span-1 text-right text-sm tabular-nums">{l.quantity}</div>
                   <div className="col-span-1 text-center text-sm">{l.unit}</div>
-                  <div className="col-span-2 text-right text-sm tabular-nums">{fmtEUR(l.unit_price_ht, uiLang)}</div>
-                  <div className="col-span-2 text-right text-sm tabular-nums font-medium">{fmtEUR(l.line_total_ht, uiLang)}</div>
+                  <div className="col-span-2 text-right text-sm tabular-nums">
+                    {fmtEUR(l.unit_price_ht, uiLang)}
+                  </div>
+                  <div className="col-span-2 text-right text-sm tabular-nums font-medium">
+                    {fmtEUR(l.line_total_ht, uiLang)}
+                  </div>
                 </div>
               ))}
             </div>
@@ -181,24 +304,40 @@ function FactureEditor() {
 
           <div className="space-y-1.5 pt-4 border-t">
             <Label className="text-xs">{t("factures.notes")}</Label>
-            <Textarea rows={3} value={fac.notes ?? ""} onChange={(e) => update({ notes: e.target.value })} />
+            <Textarea
+              rows={3}
+              value={fac.notes ?? ""}
+              onChange={(e) => update({ notes: e.target.value })}
+            />
           </div>
         </Card>
 
         <Card className="p-5 space-y-3 h-fit sticky top-4">
           <h2 className="font-semibold">{t("factures.totals")}</h2>
           <Row k={t("factures.subtotal_ht")} v={fmtEUR(subtotal, uiLang)} />
-          {vatRate > 0 ? <Row k={`${t("factures.vat")} (${vatRate}%)`} v={fmtEUR(vatAmount, uiLang)} /> : (
-            <p className="text-xs italic text-muted-foreground">TVA non applicable, article 293 B du CGI</p>
+          {vatRate > 0 ? (
+            <Row k={`${t("factures.vat")} (${vatRate}%)`} v={fmtEUR(vatAmount, uiLang)} />
+          ) : (
+            <p className="text-xs italic text-muted-foreground">
+              TVA non applicable, article 293 B du CGI
+            </p>
           )}
-          <div className="border-t pt-2"><Row k={t("factures.total_ttc")} v={fmtEUR(totalTtc, uiLang)} bold /></div>
+          <div className="border-t pt-2">
+            <Row k={t("factures.total_ttc")} v={fmtEUR(totalTtc, uiLang)} bold />
+          </div>
         </Card>
       </div>
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-5xl h-[85vh] p-0">
-          <DialogHeader className="p-4 border-b"><DialogTitle>{t("factures.preview_title")}</DialogTitle></DialogHeader>
-          <div className="flex-1 h-full">{previewUrl && <iframe src={previewUrl} title="PDF" className="w-full h-full border-0" />}</div>
+          <DialogHeader className="p-4 border-b">
+            <DialogTitle>{t("factures.preview_title")}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 h-full">
+            {previewUrl && (
+              <iframe src={previewUrl} title="PDF" className="w-full h-full border-0" />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
@@ -206,5 +345,8 @@ function FactureEditor() {
 }
 
 const Row = ({ k, v, bold }: { k: string; v: string; bold?: boolean }) => (
-  <div className={`flex justify-between text-sm ${bold ? "font-semibold text-base" : ""}`}><span>{k}</span><span className="tabular-nums">{v}</span></div>
+  <div className={`flex justify-between text-sm ${bold ? "font-semibold text-base" : ""}`}>
+    <span>{k}</span>
+    <span className="tabular-nums">{v}</span>
+  </div>
 );

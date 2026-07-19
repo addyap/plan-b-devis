@@ -12,8 +12,12 @@ export const Route = createFileRoute("/_app/factures")({
 });
 
 type Row = {
-  id: string; facture_number: string; issue_date: string; due_date: string;
-  total_ttc: number; status: "draft"|"sent"|"paid"|"overdue"|"cancelled";
+  id: string;
+  facture_number: string;
+  issue_date: string;
+  due_date: string;
+  total_ttc: number;
+  status: "draft" | "sent" | "paid" | "overdue" | "cancelled";
   client: { name: string } | null;
 };
 
@@ -31,13 +35,17 @@ function FacturesPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [search, setSearch] = useState("");
   useEffect(() => {
-    supabase.from("factures")
+    supabase
+      .from("factures")
       .select("id, facture_number, issue_date, due_date, total_ttc, status, client:clients(name)")
       .order("issue_date", { ascending: false })
       .then(({ data }) => setRows((data ?? []) as unknown as Row[]));
   }, []);
-  const filtered = rows.filter((r) =>
-    !search || r.facture_number.toLowerCase().includes(search.toLowerCase()) || r.client?.name?.toLowerCase().includes(search.toLowerCase()),
+  const filtered = rows.filter(
+    (r) =>
+      !search ||
+      r.facture_number.toLowerCase().includes(search.toLowerCase()) ||
+      r.client?.name?.toLowerCase().includes(search.toLowerCase()),
   );
   return (
     <div className="space-y-6">
@@ -46,7 +54,12 @@ function FacturesPage() {
           <h1 className="text-3xl font-semibold tracking-tight">{t("factures.title")}</h1>
           <p className="text-sm text-muted-foreground mt-1">{t("factures.subtitle")}</p>
         </div>
-        <Input placeholder={t("common.search")} value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
+        <Input
+          placeholder={t("common.search")}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-xs"
+        />
       </div>
       <Card className="hidden md:block overflow-hidden">
         <table className="w-full text-sm">
@@ -63,12 +76,24 @@ function FacturesPage() {
           <tbody>
             {filtered.map((r) => (
               <tr key={r.id} className="border-t hover:bg-accent/50">
-                <td className="p-3 font-mono"><Link to="/factures/$id" params={{ id: r.id }} className="text-primary hover:underline">{r.facture_number}</Link></td>
+                <td className="p-3 font-mono">
+                  <Link
+                    to="/factures/$id"
+                    params={{ id: r.id }}
+                    className="text-primary hover:underline"
+                  >
+                    {r.facture_number}
+                  </Link>
+                </td>
                 <td className="p-3">{r.client?.name ?? "—"}</td>
                 <td className="p-3">{fmtDate(r.issue_date, lang)}</td>
                 <td className="p-3">{fmtDate(r.due_date, lang)}</td>
                 <td className="p-3 text-right tabular-nums">{fmtEUR(r.total_ttc, lang)}</td>
-                <td className="p-3"><Badge className={STATUS[r.status]} variant="secondary">{t(`status.${r.status}`)}</Badge></td>
+                <td className="p-3">
+                  <Badge className={STATUS[r.status]} variant="secondary">
+                    {t(`status.${r.status}`)}
+                  </Badge>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -77,13 +102,20 @@ function FacturesPage() {
 
       <div className="md:hidden space-y-3">
         {filtered.map((r) => (
-          <Link key={r.id} to="/factures/$id" params={{ id: r.id }} className="block border rounded-xl bg-card p-4 active:bg-muted/50">
+          <Link
+            key={r.id}
+            to="/factures/$id"
+            params={{ id: r.id }}
+            className="block border rounded-xl bg-card p-4 active:bg-muted/50"
+          >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <div className="font-mono text-xs text-muted-foreground">{r.facture_number}</div>
                 <div className="font-medium truncate">{r.client?.name ?? "—"}</div>
               </div>
-              <Badge className={STATUS[r.status]} variant="secondary">{t(`status.${r.status}`)}</Badge>
+              <Badge className={STATUS[r.status]} variant="secondary">
+                {t(`status.${r.status}`)}
+              </Badge>
             </div>
             <div className="mt-3 flex items-end justify-between gap-3">
               <div className="text-xs text-muted-foreground">
@@ -95,7 +127,6 @@ function FacturesPage() {
           </Link>
         ))}
       </div>
-
     </div>
   );
 }

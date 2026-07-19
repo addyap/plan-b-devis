@@ -52,9 +52,14 @@ function SettingsPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    supabase.from("business_profile").select("*").limit(1).maybeSingle().then(({ data }) => {
-      setP(data as Profile);
-    });
+    supabase
+      .from("business_profile")
+      .select("*")
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        setP(data as Profile);
+      });
   }, []);
 
   const update = (patch: Partial<Profile>) => setP((prev) => (prev ? { ...prev, ...patch } : prev));
@@ -92,49 +97,129 @@ function SettingsPage() {
 
       <Card className="p-6 space-y-4">
         <h2 className="text-lg font-semibold">{t("settings.identity")}</h2>
-        <Row><F label={t("settings.legal_name")} v={p.legal_name} on={(v) => update({ legal_name: v })} /><F label={t("settings.trading_name")} v={p.trading_name} on={(v) => update({ trading_name: v })} /></Row>
-        <Row><F label={t("settings.legal_form")} v={p.legal_form} on={(v) => update({ legal_form: v })} /><F label={t("settings.siret")} v={p.siret} on={(v) => update({ siret: v })} /></Row>
-        <Row><F label={t("settings.ape")} v={p.ape_code} on={(v) => update({ ape_code: v })} /><F label={t("settings.rcs")} v={p.rcs_or_rm} on={(v) => update({ rcs_or_rm: v })} /></Row>
+        <Row>
+          <F
+            label={t("settings.legal_name")}
+            v={p.legal_name}
+            on={(v) => update({ legal_name: v })}
+          />
+          <F
+            label={t("settings.trading_name")}
+            v={p.trading_name}
+            on={(v) => update({ trading_name: v })}
+          />
+        </Row>
+        <Row>
+          <F
+            label={t("settings.legal_form")}
+            v={p.legal_form}
+            on={(v) => update({ legal_form: v })}
+          />
+          <F label={t("settings.siret")} v={p.siret} on={(v) => update({ siret: v })} />
+        </Row>
+        <Row>
+          <F label={t("settings.ape")} v={p.ape_code} on={(v) => update({ ape_code: v })} />
+          <F label={t("settings.rcs")} v={p.rcs_or_rm} on={(v) => update({ rcs_or_rm: v })} />
+        </Row>
       </Card>
 
       <Card className="p-6 space-y-4">
         <h2 className="text-lg font-semibold">{t("settings.address")}</h2>
-        <F label={t("settings.address_line1")} v={p.address_line1} on={(v) => update({ address_line1: v })} />
-        <F label={t("settings.address_line2")} v={p.address_line2} on={(v) => update({ address_line2: v })} />
-        <Row><F label={t("settings.postcode")} v={p.postcode} on={(v) => update({ postcode: v })} /><F label={t("settings.city")} v={p.city} on={(v) => update({ city: v })} /><F label={t("settings.country")} v={p.country} on={(v) => update({ country: v })} /></Row>
+        <F
+          label={t("settings.address_line1")}
+          v={p.address_line1}
+          on={(v) => update({ address_line1: v })}
+        />
+        <F
+          label={t("settings.address_line2")}
+          v={p.address_line2}
+          on={(v) => update({ address_line2: v })}
+        />
+        <Row>
+          <F label={t("settings.postcode")} v={p.postcode} on={(v) => update({ postcode: v })} />
+          <F label={t("settings.city")} v={p.city} on={(v) => update({ city: v })} />
+          <F label={t("settings.country")} v={p.country} on={(v) => update({ country: v })} />
+        </Row>
       </Card>
 
       <Card className="p-6 space-y-4">
         <h2 className="text-lg font-semibold">{t("settings.vat_section")}</h2>
         <div className="flex items-center justify-between p-4 border rounded-lg">
           <div>
-            <div className="font-medium">{tva ? t("settings.vat_registered") : t("settings.vat_franchise")}</div>
-            <div className="text-xs text-muted-foreground mt-0.5">{tva ? t("settings.vat_applied") : t("settings.vat_293b_note")}</div>
+            <div className="font-medium">
+              {tva ? t("settings.vat_registered") : t("settings.vat_franchise")}
+            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {tva ? t("settings.vat_applied") : t("settings.vat_293b_note")}
+            </div>
           </div>
-          <Switch checked={tva} onCheckedChange={(c) => update({ vat_status: c ? "tva_registered" : "franchise_293b" })} />
+          <Switch
+            checked={tva}
+            onCheckedChange={(c) => update({ vat_status: c ? "tva_registered" : "franchise_293b" })}
+          />
         </div>
         {tva && (
           <Row>
-            <F label={t("settings.vat_number")} v={p.vat_number} on={(v) => update({ vat_number: v })} />
-            <div className="space-y-1.5"><Label className="text-xs">{t("settings.vat_rate")}</Label><Input type="number" value={p.vat_rate} onChange={(e) => update({ vat_rate: Number(e.target.value) })} /></div>
+            <F
+              label={t("settings.vat_number")}
+              v={p.vat_number}
+              on={(v) => update({ vat_number: v })}
+            />
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t("settings.vat_rate")}</Label>
+              <Input
+                type="number"
+                value={p.vat_rate}
+                onChange={(e) => update({ vat_rate: Number(e.target.value) })}
+              />
+            </div>
           </Row>
         )}
       </Card>
 
       <Card className="p-6 space-y-4">
         <h2 className="text-lg font-semibold">{t("settings.insurance")}</h2>
-        <Row><F label={t("settings.rc_pro_insurer")} v={p.rc_pro_insurer} on={(v) => update({ rc_pro_insurer: v })} /><F label={t("settings.rc_pro_policy")} v={p.rc_pro_policy} on={(v) => update({ rc_pro_policy: v })} /></Row>
-        <Row><F label={t("settings.decennale_insurer")} v={p.decennale_insurer} on={(v) => update({ decennale_insurer: v })} /><F label={t("settings.geo_cover")} v={p.insurance_geographic_cover} on={(v) => update({ insurance_geographic_cover: v })} /></Row>
+        <Row>
+          <F
+            label={t("settings.rc_pro_insurer")}
+            v={p.rc_pro_insurer}
+            on={(v) => update({ rc_pro_insurer: v })}
+          />
+          <F
+            label={t("settings.rc_pro_policy")}
+            v={p.rc_pro_policy}
+            on={(v) => update({ rc_pro_policy: v })}
+          />
+        </Row>
+        <Row>
+          <F
+            label={t("settings.decennale_insurer")}
+            v={p.decennale_insurer}
+            on={(v) => update({ decennale_insurer: v })}
+          />
+          <F
+            label={t("settings.geo_cover")}
+            v={p.insurance_geographic_cover}
+            on={(v) => update({ insurance_geographic_cover: v })}
+          />
+        </Row>
       </Card>
 
       <Card className="p-6 space-y-4">
         <h2 className="text-lg font-semibold">{t("settings.bank")}</h2>
-        <Row><F label={t("settings.iban")} v={p.iban} on={(v) => update({ iban: v })} /><F label={t("settings.bic")} v={p.bic} on={(v) => update({ bic: v })} /></Row>
+        <Row>
+          <F label={t("settings.iban")} v={p.iban} on={(v) => update({ iban: v })} />
+          <F label={t("settings.bic")} v={p.bic} on={(v) => update({ bic: v })} />
+        </Row>
       </Card>
 
       <Card className="p-6 space-y-4">
         <h2 className="text-lg font-semibold">{t("settings.email")}</h2>
-        <F label={t("settings.sender_email")} v={p.sender_email} on={(v) => update({ sender_email: v })} />
+        <F
+          label={t("settings.sender_email")}
+          v={p.sender_email}
+          on={(v) => update({ sender_email: v })}
+        />
         <p className="text-xs text-muted-foreground">{t("settings.sender_help")}</p>
       </Card>
 
@@ -142,39 +227,79 @@ function SettingsPage() {
         <h2 className="text-lg font-semibold">{t("settings.defaults")}</h2>
         <div className="space-y-1.5">
           <Label className="text-xs">{t("settings.default_validity")}</Label>
-          <Input type="number" value={p.default_validity_days} onChange={(e) => update({ default_validity_days: Number(e.target.value) })} className="max-w-[200px]" />
+          <Input
+            type="number"
+            value={p.default_validity_days}
+            onChange={(e) => update({ default_validity_days: Number(e.target.value) })}
+            className="max-w-[200px]"
+          />
         </div>
-        <TF label={t("settings.default_payment_terms")} v={p.default_payment_terms} on={(v) => update({ default_payment_terms: v })} />
-        <TF label={t("settings.late_penalty")} v={p.late_penalty_terms} on={(v) => update({ late_penalty_terms: v })} />
-        <TF label={t("settings.footer_note")} v={p.default_footer_note} on={(v) => update({ default_footer_note: v })} />
+        <TF
+          label={t("settings.default_payment_terms")}
+          v={p.default_payment_terms}
+          on={(v) => update({ default_payment_terms: v })}
+        />
+        <TF
+          label={t("settings.late_penalty")}
+          v={p.late_penalty_terms}
+          on={(v) => update({ late_penalty_terms: v })}
+        />
+        <TF
+          label={t("settings.footer_note")}
+          v={p.default_footer_note}
+          on={(v) => update({ default_footer_note: v })}
+        />
       </Card>
 
       <Card className="p-6 space-y-4">
         <h2 className="text-lg font-semibold">{t("settings.branding")}</h2>
         <div className="flex items-center gap-4">
           {p.logo_url ? (
-            <img src={p.logo_url} alt="Logo" className="size-20 object-contain border rounded-lg p-2 bg-white" />
+            <img
+              src={p.logo_url}
+              alt="Logo"
+              className="size-20 object-contain border rounded-lg p-2 bg-white"
+            />
           ) : (
-            <div className="size-20 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground text-xs">{t("settings.no_logo")}</div>
+            <div className="size-20 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground text-xs">
+              {t("settings.no_logo")}
+            </div>
           )}
           <label className="cursor-pointer">
-            <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onLogo(e.target.files[0])} />
-            <span className="inline-flex items-center gap-2 px-4 py-2 border rounded-md text-sm hover:bg-accent"><Upload className="size-4" /> {t("settings.upload_logo")}</span>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => e.target.files?.[0] && onLogo(e.target.files[0])}
+            />
+            <span className="inline-flex items-center gap-2 px-4 py-2 border rounded-md text-sm hover:bg-accent">
+              <Upload className="size-4" /> {t("settings.upload_logo")}
+            </span>
           </label>
         </div>
       </Card>
 
       <div className="flex justify-end">
-        <Button onClick={save} size="lg" disabled={saving}>{saving ? t("common.saving") : t("settings.save")}</Button>
+        <Button onClick={save} size="lg" disabled={saving}>
+          {saving ? t("common.saving") : t("settings.save")}
+        </Button>
       </div>
     </div>
   );
 }
 
-const Row = ({ children }: { children: React.ReactNode }) => <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{children}</div>;
+const Row = ({ children }: { children: React.ReactNode }) => (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{children}</div>
+);
 const F = ({ label, v, on }: { label: string; v: string | null; on: (v: string) => void }) => (
-  <div className="space-y-1.5"><Label className="text-xs">{label}</Label><Input value={v ?? ""} onChange={(e) => on(e.target.value)} /></div>
+  <div className="space-y-1.5">
+    <Label className="text-xs">{label}</Label>
+    <Input value={v ?? ""} onChange={(e) => on(e.target.value)} />
+  </div>
 );
 const TF = ({ label, v, on }: { label: string; v: string | null; on: (v: string) => void }) => (
-  <div className="space-y-1.5"><Label className="text-xs">{label}</Label><Textarea rows={3} value={v ?? ""} onChange={(e) => on(e.target.value)} /></div>
+  <div className="space-y-1.5">
+    <Label className="text-xs">{label}</Label>
+    <Textarea rows={3} value={v ?? ""} onChange={(e) => on(e.target.value)} />
+  </div>
 );

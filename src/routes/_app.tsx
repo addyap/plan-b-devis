@@ -13,4 +13,3 @@ function AppLayout() {
     </AppShell>
   );
 }
-

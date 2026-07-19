@@ -8,20 +8,18 @@ import en from "./locales/en.json";
 // first paint match. The client-side hook below switches the language
 // after hydration based on localStorage.
 if (!i18n.isInitialized) {
-  i18n
-    .use(initReactI18next)
-    .init({
-      resources: {
-        fr: { translation: fr },
-        en: { translation: en },
-      },
-      lng: "fr",
-      fallbackLng: "fr",
-      supportedLngs: ["fr", "en"],
-      load: "languageOnly",
-      interpolation: { escapeValue: false },
-      react: { useSuspense: false },
-    });
+  i18n.use(initReactI18next).init({
+    resources: {
+      fr: { translation: fr },
+      en: { translation: en },
+    },
+    lng: "fr",
+    fallbackLng: "fr",
+    supportedLngs: ["fr", "en"],
+    load: "languageOnly",
+    interpolation: { escapeValue: false },
+    react: { useSuspense: false },
+  });
 }
 
 const STORAGE_KEY = "pbc.lang";
@@ -40,7 +38,11 @@ export function syncClientLocale() {
 
 export function persistLocale(lang: "fr" | "en") {
   if (typeof window === "undefined") return;
-  try { window.localStorage.setItem(STORAGE_KEY, lang); } catch { /* ignore */ }
+  try {
+    window.localStorage.setItem(STORAGE_KEY, lang);
+  } catch {
+    /* ignore */
+  }
 }
 
 export default i18n;

@@ -26,9 +26,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [hydrated, setHydrated] = useState(false);
-  useEffect(() => { setHydrated(true); }, []);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
-  const setLang = (lng: "fr" | "en") => { persistLocale(lng); void i18n.changeLanguage(lng); };
+  const setLang = (lng: "fr" | "en") => {
+    persistLocale(lng);
+    void i18n.changeLanguage(lng);
+  };
   const active = (i18n.resolvedLanguage ?? i18n.language ?? "fr").startsWith("fr") ? "fr" : "en";
   const current = hydrated ? active : "fr";
 
@@ -36,7 +41,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     navigate({ to: "/auth", replace: true });
   };
-
 
   const isActive = (to: string) =>
     path.startsWith(to) || (to === "/dashboard" && path.startsWith("/devis"));
@@ -64,23 +68,42 @@ export function AppShell({ children }: { children: ReactNode }) {
             </nav>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1.5 text-white hover:bg-white/10 hover:text-white" aria-label={t("common.language")}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-white hover:bg-white/10 hover:text-white"
+                  aria-label={t("common.language")}
+                >
                   <Globe className="size-4" />
                   <span className="text-xs font-semibold uppercase">{current}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setLang("fr")} className={current === "fr" ? "font-semibold" : ""}>
+                <DropdownMenuItem
+                  onClick={() => setLang("fr")}
+                  className={current === "fr" ? "font-semibold" : ""}
+                >
                   🇫🇷 Français
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setLang("en")} className={current === "en" ? "font-semibold" : ""}>
+                <DropdownMenuItem
+                  onClick={() => setLang("en")}
+                  className={current === "en" ? "font-semibold" : ""}
+                >
                   🇬🇧 English
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button variant="ghost" size="sm" onClick={signOut} className="gap-1.5 text-white hover:bg-white/10 hover:text-white" aria-label={current === "fr" ? "Déconnexion" : "Sign out"}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={signOut}
+              className="gap-1.5 text-white hover:bg-white/10 hover:text-white"
+              aria-label={current === "fr" ? "Déconnexion" : "Sign out"}
+            >
               <LogOut className="size-4" />
-              <span className="hidden sm:inline text-xs">{current === "fr" ? "Déconnexion" : "Sign out"}</span>
+              <span className="hidden sm:inline text-xs">
+                {current === "fr" ? "Déconnexion" : "Sign out"}
+              </span>
             </Button>
           </div>
         </div>
@@ -103,7 +126,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className={`flex flex-col items-center justify-center gap-1 py-2.5 min-h-14 text-[11px] ${a ? "text-brand-gold font-semibold" : "text-white/75"}`}
               >
                 <Icon className="size-5" />
-                <span suppressHydrationWarning className="leading-none">{t(key)}</span>
+                <span suppressHydrationWarning className="leading-none">
+                  {t(key)}
+                </span>
               </Link>
             );
           })}

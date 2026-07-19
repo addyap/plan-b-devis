@@ -35,90 +35,104 @@
   --color-brand-brick: var(--brand-brick);
   --color-brand-brick-hover: var(--brand-brick-hover);
   --color-ring-offset-background: var(--background);
- --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
- --font-serif: "Orbitron", ui-sans-serif, system-ui, sans-serif;
- --font-display: "Orbitron", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Orbitron", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Orbitron", ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
   --radius: 0.5rem;
 
   /* Plan B Côte d'Azur — exact palette */
-  --brand-maroon: #2E1011;          /* deep espresso maroon */
-  --brand-maroon-dark: #1d0a0b;     /* hover/darker */
-  --brand-gold: #F2CB3C;            /* primary accent */
-  --brand-gold-hover: #d9b22e;      /* hover */
-  --brand-brick: #9B2E2A;           /* secondary accent */
-  --brand-brick-hover: #7d2421;     /* hover */
+  --brand-maroon: #2e1011; /* deep espresso maroon */
+  --brand-maroon-dark: #1d0a0b; /* hover/darker */
+  --brand-gold: #f2cb3c; /* primary accent */
+  --brand-gold-hover: #d9b22e; /* hover */
+  --brand-brick: #9b2e2a; /* secondary accent */
+  --brand-brick-hover: #7d2421; /* hover */
 
-  --background: #FFFFFF;
-  --foreground: #1a0808;            /* near-black maroon body text */
+  --background: #ffffff;
+  --foreground: #1a0808; /* near-black maroon body text */
 
-  --card: #FFFFFF;
+  --card: #ffffff;
   --card-foreground: #1a0808;
-  --popover: #FFFFFF;
+  --popover: #ffffff;
   --popover-foreground: #1a0808;
 
   /* Primary = gold accent. Buttons render gold with dark maroon text (AA contrast). */
-  --primary: #F2CB3C;
-  --primary-foreground: #2E1011;
+  --primary: #f2cb3c;
+  --primary-foreground: #2e1011;
 
   /* Secondary = brick red with white text */
-  --secondary: #9B2E2A;
-  --secondary-foreground: #FFFFFF;
+  --secondary: #9b2e2a;
+  --secondary-foreground: #ffffff;
 
   --muted: #f5efea;
   --muted-foreground: #5a3a3a;
 
   /* Accent kept as gold for highlights / active chips */
-  --accent: #F2CB3C;
-  --accent-foreground: #2E1011;
+  --accent: #f2cb3c;
+  --accent-foreground: #2e1011;
 
   --destructive: #b42318;
-  --destructive-foreground: #FFFFFF;
+  --destructive-foreground: #ffffff;
 
   --border: #ead9d3;
   --input: #ead9d3;
-  --ring: #9B2E2A;
+  --ring: #9b2e2a;
 }
 
 .dark {
-  --background: #2E1011;            /* maroon base */
+  --background: #2e1011; /* maroon base */
   --foreground: #fbeedd;
   --card: #3a1718;
   --card-foreground: #fbeedd;
   --popover: #3a1718;
   --popover-foreground: #fbeedd;
-  --primary: #F2CB3C;
-  --primary-foreground: #2E1011;
-  --secondary: #9B2E2A;
-  --secondary-foreground: #FFFFFF;
+  --primary: #f2cb3c;
+  --primary-foreground: #2e1011;
+  --secondary: #9b2e2a;
+  --secondary-foreground: #ffffff;
   --muted: #401b1c;
   --muted-foreground: #d4bdb2;
-  --accent: #F2CB3C;
-  --accent-foreground: #2E1011;
+  --accent: #f2cb3c;
+  --accent-foreground: #2e1011;
   --destructive: #ef4444;
-  --destructive-foreground: #FFFFFF;
+  --destructive-foreground: #ffffff;
   --border: rgba(255, 255, 255, 0.12);
   --input: rgba(255, 255, 255, 0.15);
-  --ring: #F2CB3C;
+  --ring: #f2cb3c;
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
+  * {
+    border-color: var(--color-border);
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
-  h1, h2, h3, h4 {
+  h1,
+  h2,
+  h3,
+  h4 {
     font-family: var(--font-display);
     letter-spacing: -0.01em;
     color: var(--brand-maroon);
     font-weight: 600;
   }
-  .dark h1, .dark h2, .dark h3, .dark h4 { color: var(--foreground); }
-  a { color: var(--brand-brick); }
-  a:hover { color: var(--brand-brick-hover); }
+  .dark h1,
+  .dark h2,
+  .dark h3,
+  .dark h4 {
+    color: var(--foreground);
+  }
+  a {
+    color: var(--brand-brick);
+  }
+  a:hover {
+    color: var(--brand-brick-hover);
+  }
 }

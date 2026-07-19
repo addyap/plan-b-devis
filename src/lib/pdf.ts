@@ -8,31 +8,70 @@ import brandLogoDataUrl from "@/assets/plan-b-logo.png?inline";
 
 export type PdfProfile = {
   id?: string;
-  legal_name: string | null; trading_name: string | null; legal_form: string | null;
-  address_line1: string | null; address_line2: string | null; postcode: string | null; city: string | null; country: string | null;
-  siret: string | null; ape_code: string | null; rcs_or_rm: string | null;
-  vat_status: "franchise_293b" | "tva_registered"; vat_number: string | null; vat_rate: number;
-  rc_pro_insurer: string | null; rc_pro_policy: string | null; decennale_insurer: string | null; insurance_geographic_cover: string | null;
-  iban: string | null; bic: string | null;
-  default_payment_terms: string | null; late_penalty_terms: string | null; default_footer_note: string | null;
+  legal_name: string | null;
+  trading_name: string | null;
+  legal_form: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  postcode: string | null;
+  city: string | null;
+  country: string | null;
+  siret: string | null;
+  ape_code: string | null;
+  rcs_or_rm: string | null;
+  vat_status: "franchise_293b" | "tva_registered";
+  vat_number: string | null;
+  vat_rate: number;
+  rc_pro_insurer: string | null;
+  rc_pro_policy: string | null;
+  decennale_insurer: string | null;
+  insurance_geographic_cover: string | null;
+  iban: string | null;
+  bic: string | null;
+  default_payment_terms: string | null;
+  late_penalty_terms: string | null;
+  default_footer_note: string | null;
   default_validity_days?: number | null;
-  logo_url: string | null; brand_color: string | null;
+  logo_url: string | null;
+  brand_color: string | null;
   sender_email?: string | null;
 };
 
 export type PdfClient = {
-  name: string; contact_name: string | null; address_line1: string | null; address_line2: string | null;
-  postcode: string | null; city: string | null; country: string | null; email: string | null; phone: string | null;
+  name: string;
+  contact_name: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  postcode: string | null;
+  city: string | null;
+  country: string | null;
+  email: string | null;
+  phone: string | null;
 } | null;
 
-export type PdfLine = { description: string; quantity: number; unit: string | null; unit_price_ht: number; line_total_ht: number };
+export type PdfLine = {
+  description: string;
+  quantity: number;
+  unit: string | null;
+  unit_price_ht: number;
+  line_total_ht: number;
+};
 
 export type SchedulePdfRow = { label: string; milestone: string; amount: number; pct: number };
 
 export type PdfDevis = {
-  devis_number: string; issue_date: string; validity_until: string; language: Lang;
-  project_description: string | null; project_start: string | null; project_duration: string | null;
-  subtotal_ht: number; vat_amount: number; total_ttc: number; deposit_amount: number | null; notes: string | null;
+  devis_number: string;
+  issue_date: string;
+  validity_until: string;
+  language: Lang;
+  project_description: string | null;
+  project_start: string | null;
+  project_duration: string | null;
+  subtotal_ht: number;
+  vat_amount: number;
+  total_ttc: number;
+  deposit_amount: number | null;
+  notes: string | null;
   project_name?: string | null;
   site_address?: string | null;
   operation_type?: string | null;
@@ -45,22 +84,38 @@ export type PdfDevis = {
 };
 
 export type PdfFacture = {
-  facture_number: string; issue_date: string; due_date: string; language: Lang;
-  project_description: string | null; project_start: string | null; project_duration: string | null;
-  subtotal_ht: number; vat_amount: number; total_ttc: number; deposit_amount: number | null; notes: string | null;
+  facture_number: string;
+  issue_date: string;
+  due_date: string;
+  language: Lang;
+  project_description: string | null;
+  project_start: string | null;
+  project_duration: string | null;
+  subtotal_ht: number;
+  vat_amount: number;
+  total_ttc: number;
+  deposit_amount: number | null;
+  notes: string | null;
 };
 
-const MAROON: [number, number, number] = [46, 16, 17];    // #2E1011
-const BRICK: [number, number, number] = [155, 46, 42];    // #9B2E2A
-const GOLD: [number, number, number] = [242, 203, 60];    // #F2CB3C
+const MAROON: [number, number, number] = [46, 16, 17]; // #2E1011
+const BRICK: [number, number, number] = [155, 46, 42]; // #9B2E2A
+const GOLD: [number, number, number] = [242, 203, 60]; // #F2CB3C
 // Back-compat alias used throughout the file
 const NAVY = MAROON;
 const locale = (l: Lang) => (l === "fr" ? "fr-FR" : "en-GB");
 const fmtMoney = (n: number, lang: Lang) =>
-  new Intl.NumberFormat(locale(lang), { style: "currency", currency: "EUR" }).format(Number(n || 0));
+  new Intl.NumberFormat(locale(lang), { style: "currency", currency: "EUR" }).format(
+    Number(n || 0),
+  );
 const fmtD = (d: string | null | undefined, lang: Lang) =>
-  d ? new Intl.DateTimeFormat(locale(lang), { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(d)) : "—";
-
+  d
+    ? new Intl.DateTimeFormat(locale(lang), {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(new Date(d))
+    : "—";
 
 async function dataUrlToDims(dataUrl: string): Promise<{ w: number; h: number }> {
   if (typeof Image === "undefined") return { w: 1, h: 1 };
@@ -72,7 +127,9 @@ async function dataUrlToDims(dataUrl: string): Promise<{ w: number; h: number }>
   });
 }
 
-async function fetchLogoDataUrl(logoUrl: string | null): Promise<{ data: string; w: number; h: number; fmt: "PNG" | "JPEG" } | null> {
+async function fetchLogoDataUrl(
+  logoUrl: string | null,
+): Promise<{ data: string; w: number; h: number; fmt: "PNG" | "JPEG" } | null> {
   // No custom logo on the profile → embed the bundled brand logo directly.
   if (!logoUrl) {
     const dims = await dataUrlToDims(brandLogoDataUrl);
@@ -83,7 +140,9 @@ async function fetchLogoDataUrl(logoUrl: string | null): Promise<{ data: string;
     let url = logoUrl;
     const m = logoUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/logos\/([^?]+)/);
     if (m) {
-      const { data } = await supabase.storage.from("logos").createSignedUrl(decodeURIComponent(m[1]), 300);
+      const { data } = await supabase.storage
+        .from("logos")
+        .createSignedUrl(decodeURIComponent(m[1]), 300);
       if (data?.signedUrl) url = data.signedUrl;
     }
     const res = await fetch(url, { mode: "cors" });
@@ -104,7 +163,6 @@ async function fetchLogoDataUrl(logoUrl: string | null): Promise<{ data: string;
 }
 
 type DocKind = "devis" | "facture";
-
 
 type CommonInput = {
   kind: DocKind;
@@ -134,7 +192,11 @@ type CommonInput = {
   paymentSchedule?: SchedulePdfRow[];
 };
 
-async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClient): Promise<jsPDF> {
+async function buildPdf(
+  input: CommonInput,
+  profile: PdfProfile,
+  client: PdfClient,
+): Promise<jsPDF> {
   const lang = input.language;
   const tva = profile.vat_status === "tva_registered";
   const tradingName = profile.trading_name || profile.legal_name || "Plan B Concept";
@@ -159,20 +221,36 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
   let logoW = 0;
   if (logo) {
     logoW = Math.min(34, (logo.w / logo.h) * logoH);
-    try { doc.addImage(logo.data, logo.fmt, M, (bandH - logoH) / 2, logoW, logoH, undefined, "FAST"); } catch { /* ignore */ }
+    try {
+      doc.addImage(logo.data, logo.fmt, M, (bandH - logoH) / 2, logoW, logoH, undefined, "FAST");
+    } catch {
+      /* ignore */
+    }
   }
   const nameX = M + (logo ? logoW + 10 : 0);
   doc.setFont("helvetica", "bold").setFontSize(15).setTextColor(255, 255, 255);
   doc.text(tradingName, nameX, 13);
-  doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(...GOLD);
-  doc.text("C\u00F4te d\u2019Azur \u00B7 Ma\u00eetrise d\u2019\u0153uvre \u00b7 Project Management", nameX, 18);
+  doc
+    .setFont("helvetica", "normal")
+    .setFontSize(8)
+    .setTextColor(...GOLD);
+  doc.text(
+    "C\u00F4te d\u2019Azur \u00B7 Ma\u00eetrise d\u2019\u0153uvre \u00b7 Project Management",
+    nameX,
+    18,
+  );
 
   // Title + meta on right side of band
-  doc.setFont("helvetica", "bold").setFontSize(18).setTextColor(...GOLD);
+  doc
+    .setFont("helvetica", "bold")
+    .setFontSize(18)
+    .setTextColor(...GOLD);
   doc.text(`${titleWord} N\u00B0 ${input.number}`, pageW - M, 14, { align: "right" });
   doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(255, 255, 255);
   doc.text(`${L.date[lang]} : ${fmtD(input.issueDate, lang)}`, pageW - M, 20, { align: "right" });
-  doc.text(`${input.rightDateLabel} : ${fmtD(input.rightDate, lang)}`, pageW - M, 25, { align: "right" });
+  doc.text(`${input.rightDateLabel} : ${fmtD(input.rightDate, lang)}`, pageW - M, 25, {
+    align: "right",
+  });
 
   y = bandH + 8;
 
@@ -183,7 +261,9 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
   if (profile.legal_form) issuerLines.push(profile.legal_form);
   if (profile.address_line1) issuerLines.push(profile.address_line1);
   if (profile.address_line2) issuerLines.push(profile.address_line2);
-  const cityLine = [profile.postcode, profile.city].filter(Boolean).join(" ") + (profile.country ? `, ${profile.country}` : "");
+  const cityLine =
+    [profile.postcode, profile.city].filter(Boolean).join(" ") +
+    (profile.country ? `, ${profile.country}` : "");
   if (cityLine.trim()) issuerLines.push(cityLine);
   if (profile.siret) issuerLines.push(`SIRET : ${profile.siret}`);
   if (profile.ape_code) issuerLines.push(`APE : ${profile.ape_code}`);
@@ -196,7 +276,9 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
     if (client.contact_name) clientLines.push(client.contact_name);
     if (client.address_line1) clientLines.push(client.address_line1);
     if (client.address_line2) clientLines.push(client.address_line2);
-    const cl = [client.postcode, client.city].filter(Boolean).join(" ") + (client.country ? `, ${client.country}` : "");
+    const cl =
+      [client.postcode, client.city].filter(Boolean).join(" ") +
+      (client.country ? `, ${client.country}` : "");
     if (cl.trim()) clientLines.push(cl);
     if (client.email) clientLines.push(client.email);
     if (client.phone) clientLines.push(client.phone);
@@ -207,7 +289,10 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
   const drawBox = (x: number, label: string, lines: string[]) => {
     const boxH = 8 + lines.length * 4.4 + 4;
     doc.setFillColor(247, 248, 250).rect(x, y, colW, boxH, "F");
-    doc.setFont("helvetica", "bold").setFontSize(8).setTextColor(...NAVY);
+    doc
+      .setFont("helvetica", "bold")
+      .setFontSize(8)
+      .setTextColor(...NAVY);
     doc.text(label.toUpperCase(), x + 3, y + 5);
     doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(30);
     lines.forEach((ln, i) => doc.text(ln, x + 3, y + 10 + i * 4.4));
@@ -219,8 +304,14 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
 
   // Project box
   if (input.projectDescription || input.projectStart || input.projectDuration) {
-    doc.setDrawColor(...NAVY).setLineWidth(1.2).line(M, y, M, y + 16);
-    doc.setFont("helvetica", "bold").setFontSize(8).setTextColor(...NAVY);
+    doc
+      .setDrawColor(...NAVY)
+      .setLineWidth(1.2)
+      .line(M, y, M, y + 16);
+    doc
+      .setFont("helvetica", "bold")
+      .setFontSize(8)
+      .setTextColor(...NAVY);
     doc.text(L.project[lang].toUpperCase(), M + 3, y + 4);
     doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(30);
     const descLines = input.projectDescription
@@ -231,24 +322,44 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
     const meta: string[] = [];
     if (input.projectStart) meta.push(`${L.startDate[lang]}: ${fmtD(input.projectStart, lang)}`);
     if (input.projectDuration) meta.push(`${L.duration[lang]}: ${input.projectDuration}`);
-    if (meta.length) { doc.setTextColor(90); doc.text(meta.join("   "), M + 3, py + 2); py += 4.4; }
+    if (meta.length) {
+      doc.setTextColor(90);
+      doc.text(meta.join("   "), M + 3, py + 2);
+      py += 4.4;
+    }
     y = py + 4;
   }
 
   // MOE project block (devis)
-  if (input.kind === "devis" && (input.projectName || input.siteAddress || input.operationType || input.surfaceM2 || input.worksBudgetHt || (input.missionPhases && input.missionPhases.length))) {
+  if (
+    input.kind === "devis" &&
+    (input.projectName ||
+      input.siteAddress ||
+      input.operationType ||
+      input.surfaceM2 ||
+      input.worksBudgetHt ||
+      (input.missionPhases && input.missionPhases.length))
+  ) {
     const rows: [string, string][] = [];
     if (input.projectName) rows.push([L.projectName[lang], input.projectName]);
     if (input.siteAddress) rows.push([L.siteAddress[lang], input.siteAddress]);
     if (input.operationType) rows.push([L.operationType[lang], input.operationType]);
     if (input.surfaceM2) rows.push([L.surface[lang], `${input.surfaceM2} m²`]);
-    if (input.worksBudgetHt) rows.push([L.worksBudget[lang], fmtMoney(Number(input.worksBudgetHt), lang)]);
-    if (input.missionPhases && input.missionPhases.length) rows.push([L.missionPhases[lang], input.missionPhases.join(" · ")]);
+    if (input.worksBudgetHt)
+      rows.push([L.worksBudget[lang], fmtMoney(Number(input.worksBudgetHt), lang)]);
+    if (input.missionPhases && input.missionPhases.length)
+      rows.push([L.missionPhases[lang], input.missionPhases.join(" · ")]);
     const boxH = 6 + rows.length * 4.6 + 3;
     doc.setFillColor(247, 248, 250).rect(M, y, pageW - M * 2, boxH, "F");
-    doc.setDrawColor(...GOLD).setLineWidth(1.2).line(M, y, M, y + boxH);
+    doc
+      .setDrawColor(...GOLD)
+      .setLineWidth(1.2)
+      .line(M, y, M, y + boxH);
     rows.forEach((r, i) => {
-      doc.setFont("helvetica", "bold").setFontSize(8).setTextColor(...NAVY);
+      doc
+        .setFont("helvetica", "bold")
+        .setFontSize(8)
+        .setTextColor(...NAVY);
       doc.text(r[0].toUpperCase(), M + 3, y + 6 + i * 4.6);
       doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(30);
       doc.text(r[1], M + 55, y + 6 + i * 4.6);
@@ -267,7 +378,6 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
       l.unit || "—",
       fmtMoney(Number(l.unit_price_ht), lang),
       fmtMoney(Number(l.line_total_ht), lang),
-
     ]),
     headStyles: { fillColor: BRICK, textColor: 255, fontStyle: "bold", fontSize: 9 },
     bodyStyles: { fontSize: 9, textColor: 30 },
@@ -287,7 +397,10 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
   const totalsX = pageW - M - 80;
   const valX = pageW - M;
   const row = (label: string, value: string, bold = false) => {
-    doc.setFont("helvetica", bold ? "bold" : "normal").setFontSize(bold ? 11 : 9).setTextColor(bold ? NAVY[0] : 30, bold ? NAVY[1] : 30, bold ? NAVY[2] : 30);
+    doc
+      .setFont("helvetica", bold ? "bold" : "normal")
+      .setFontSize(bold ? 11 : 9)
+      .setTextColor(bold ? NAVY[0] : 30, bold ? NAVY[1] : 30, bold ? NAVY[2] : 30);
     doc.text(label, totalsX, y);
     doc.text(value, valX, y, { align: "right" });
     y += bold ? 6.5 : 5;
@@ -295,7 +408,11 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
   row(L.subtotal[lang], fmtMoney(input.subtotalHt, lang));
   if (tva) row(`${L.vat[lang]} (${profile.vat_rate} %)`, fmtMoney(input.vatAmount, lang));
   // Gold accent rule before the total
-  doc.setDrawColor(...GOLD).setLineWidth(0.8).line(totalsX, y, valX, y); y += 3;
+  doc
+    .setDrawColor(...GOLD)
+    .setLineWidth(0.8)
+    .line(totalsX, y, valX, y);
+  y += 3;
   // Total TTC row — brick red filled band with white text
   {
     const rowH = 9;
@@ -321,23 +438,35 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
   // Honoraires summary (MOE)
   if (input.kind === "devis" && input.honorairesHt && input.worksBudgetHt) {
     doc.setFillColor(247, 248, 250).rect(M, y, pageW - M * 2, 11, "F");
-    doc.setDrawColor(...GOLD).setLineWidth(1.2).line(M, y, M, y + 11);
-    doc.setFont("helvetica", "bold").setFontSize(9).setTextColor(...NAVY);
+    doc
+      .setDrawColor(...GOLD)
+      .setLineWidth(1.2)
+      .line(M, y, M, y + 11);
+    doc
+      .setFont("helvetica", "bold")
+      .setFontSize(9)
+      .setTextColor(...NAVY);
     doc.text(L.totalHonoraires[lang], M + 3, y + 7);
     const pctStr = `${String(input.honorairesPct ?? 0).replace(".", lang === "fr" ? "," : ".")} % ${L.pctOfWorks[lang]}`;
-    doc.text(`${fmtMoney(input.honorairesHt, lang)}  \u00B7  ${pctStr}`, pageW - M - 3, y + 7, { align: "right" });
+    doc.text(`${fmtMoney(input.honorairesHt, lang)}  \u00B7  ${pctStr}`, pageW - M - 3, y + 7, {
+      align: "right",
+    });
     y += 15;
   }
 
   // Payment schedule (MOE)
   if (input.kind === "devis" && input.paymentSchedule && input.paymentSchedule.length) {
-    doc.setFont("helvetica", "bold").setFontSize(8).setTextColor(...NAVY);
-    doc.text(L.paymentSchedule[lang].toUpperCase(), M, y); y += 2;
+    doc
+      .setFont("helvetica", "bold")
+      .setFontSize(8)
+      .setTextColor(...NAVY);
+    doc.text(L.paymentSchedule[lang].toUpperCase(), M, y);
+    y += 2;
     autoTable(doc, {
       startY: y,
       margin: { left: M, right: M },
       head: [[L.description[lang], L.milestone[lang], "%", L.amount[lang]]],
-      body: input.paymentSchedule.map(r => [
+      body: input.paymentSchedule.map((r) => [
         r.label || "—",
         r.milestone || "—",
         `${String(r.pct).replace(".", lang === "fr" ? "," : ".")} %`,
@@ -345,7 +474,10 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
       ]),
       headStyles: { fillColor: BRICK, textColor: 255, fontStyle: "bold", fontSize: 9 },
       bodyStyles: { fontSize: 9, textColor: 30 },
-      columnStyles: { 2: { halign: "right", cellWidth: 24 }, 3: { halign: "right", cellWidth: 32 } },
+      columnStyles: {
+        2: { halign: "right", cellWidth: 24 },
+        3: { halign: "right", cellWidth: 32 },
+      },
       styles: { cellPadding: 2.5, lineColor: [226, 228, 232], lineWidth: 0.2 },
     });
     // @ts-expect-error autotable side-effect
@@ -353,31 +485,52 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
   }
 
   // Conditions (devis only includes validity & "Devis gratuit")
-  const ensureSpace = (need: number) => { if (y + need > pageH - 30) { doc.addPage(); y = M; } };
+  const ensureSpace = (need: number) => {
+    if (y + need > pageH - 30) {
+      doc.addPage();
+      y = M;
+    }
+  };
 
   const sec = (title: string, body: string) => {
     if (!body) return;
     ensureSpace(14);
-    doc.setFont("helvetica", "bold").setFontSize(8).setTextColor(...NAVY);
-    doc.text(title.toUpperCase(), M, y); y += 4;
+    doc
+      .setFont("helvetica", "bold")
+      .setFontSize(8)
+      .setTextColor(...NAVY);
+    doc.text(title.toUpperCase(), M, y);
+    y += 4;
     doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(40);
     const wrapped = doc.splitTextToSize(body, pageW - M * 2);
     ensureSpace(wrapped.length * 4.2 + 4);
-    wrapped.forEach((ln: string) => { doc.text(ln, M, y); y += 4.2; });
+    wrapped.forEach((ln: string) => {
+      doc.text(ln, M, y);
+      y += 4.2;
+    });
     y += 3;
   };
   sec(L.paymentTerms[lang], profile.default_payment_terms || "");
   sec(L.latePenalty[lang], profile.late_penalty_terms || "");
   if (input.kind === "devis") {
-    sec(`${L.validity[lang]} \u00B7 ${L.free[lang]}`, `${L.validUntil[lang]}: ${fmtD(input.rightDate, lang)}`);
+    sec(
+      `${L.validity[lang]} \u00B7 ${L.free[lang]}`,
+      `${L.validUntil[lang]}: ${fmtD(input.rightDate, lang)}`,
+    );
   }
   sec(L.notes[lang], input.notes || "");
 
   // Signature (devis only)
   if (input.kind === "devis") {
     ensureSpace(28);
-    doc.setDrawColor(...NAVY).setLineWidth(0.4).rect(M, y, pageW - M * 2, 22);
-    doc.setFont("helvetica", "bold").setFontSize(9).setTextColor(...NAVY);
+    doc
+      .setDrawColor(...NAVY)
+      .setLineWidth(0.4)
+      .rect(M, y, pageW - M * 2, 22);
+    doc
+      .setFont("helvetica", "bold")
+      .setFontSize(9)
+      .setTextColor(...NAVY);
     doc.text(L.signatureBlock[lang], M + 3, y + 6);
     y += 26;
   }
@@ -385,20 +538,49 @@ async function buildPdf(input: CommonInput, profile: PdfProfile, client: PdfClie
   // Footer on each page
   const footerLines: string[] = [];
   footerLines.push(
-    [profile.legal_name || tradingName, profile.legal_form, [profile.address_line1, profile.postcode, profile.city, profile.country].filter(Boolean).join(", "), profile.siret ? `SIRET ${profile.siret}` : null, profile.ape_code ? `APE ${profile.ape_code}` : null, tva && profile.vat_number ? `TVA ${profile.vat_number}` : null].filter(Boolean).join(" \u00B7 "),
+    [
+      profile.legal_name || tradingName,
+      profile.legal_form,
+      [profile.address_line1, profile.postcode, profile.city, profile.country]
+        .filter(Boolean)
+        .join(", "),
+      profile.siret ? `SIRET ${profile.siret}` : null,
+      profile.ape_code ? `APE ${profile.ape_code}` : null,
+      tva && profile.vat_number ? `TVA ${profile.vat_number}` : null,
+    ]
+      .filter(Boolean)
+      .join(" \u00B7 "),
   );
-  const bank = [profile.iban ? `IBAN ${profile.iban}` : null, profile.bic ? `BIC ${profile.bic}` : null].filter(Boolean).join(" \u00B7 ");
+  const bank = [
+    profile.iban ? `IBAN ${profile.iban}` : null,
+    profile.bic ? `BIC ${profile.bic}` : null,
+  ]
+    .filter(Boolean)
+    .join(" \u00B7 ");
   if (bank) footerLines.push(bank);
-  const ins = [profile.rc_pro_insurer ? `RC Pro: ${profile.rc_pro_insurer}${profile.rc_pro_policy ? ` (${profile.rc_pro_policy})` : ""}` : null, profile.decennale_insurer ? `D\u00e9cennale: ${profile.decennale_insurer}` : null, profile.insurance_geographic_cover].filter(Boolean).join(" \u00B7 ");
+  const ins = [
+    profile.rc_pro_insurer
+      ? `RC Pro: ${profile.rc_pro_insurer}${profile.rc_pro_policy ? ` (${profile.rc_pro_policy})` : ""}`
+      : null,
+    profile.decennale_insurer ? `D\u00e9cennale: ${profile.decennale_insurer}` : null,
+    profile.insurance_geographic_cover,
+  ]
+    .filter(Boolean)
+    .join(" \u00B7 ");
   if (ins) footerLines.push(ins);
   if (profile.default_footer_note) footerLines.push(profile.default_footer_note);
 
   const pageCount = doc.getNumberOfPages();
   for (let p = 1; p <= pageCount; p++) {
     doc.setPage(p);
-    doc.setDrawColor(220).setLineWidth(0.2).line(M, pageH - 20, pageW - M, pageH - 20);
+    doc
+      .setDrawColor(220)
+      .setLineWidth(0.2)
+      .line(M, pageH - 20, pageW - M, pageH - 20);
     doc.setFont("helvetica", "normal").setFontSize(7).setTextColor(110);
-    footerLines.forEach((ln, i) => doc.text(ln, pageW / 2, pageH - 17 + i * 3.2, { align: "center", maxWidth: pageW - M * 2 }));
+    footerLines.forEach((ln, i) =>
+      doc.text(ln, pageW / 2, pageH - 17 + i * 3.2, { align: "center", maxWidth: pageW - M * 2 }),
+    );
   }
 
   return doc;

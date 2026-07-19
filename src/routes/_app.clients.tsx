@@ -6,7 +6,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,13 +22,28 @@ export const Route = createFileRoute("/_app/clients")({
 });
 
 type Client = {
-  id: string; name: string; contact_name: string | null; email: string | null; phone: string | null;
-  address_line1: string | null; address_line2: string | null; postcode: string | null; city: string | null; country: string | null;
+  id: string;
+  name: string;
+  contact_name: string | null;
+  email: string | null;
+  phone: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  postcode: string | null;
+  city: string | null;
+  country: string | null;
 };
 
 const EMPTY: Omit<Client, "id"> = {
-  name: "", contact_name: "", email: "", phone: "",
-  address_line1: "", address_line2: "", postcode: "", city: "", country: "France",
+  name: "",
+  contact_name: "",
+  email: "",
+  phone: "",
+  address_line1: "",
+  address_line2: "",
+  postcode: "",
+  city: "",
+  country: "France",
 };
 
 function ClientsPage() {
@@ -38,11 +60,22 @@ function ClientsPage() {
   const [editing, setEditing] = useState<Client | null>(null);
   const [form, setForm] = useState(EMPTY);
 
-  const openNew = () => { setEditing(null); setForm(EMPTY); setOpen(true); };
-  const openEdit = (c: Client) => { setEditing(c); setForm({ ...EMPTY, ...c }); setOpen(true); };
+  const openNew = () => {
+    setEditing(null);
+    setForm(EMPTY);
+    setOpen(true);
+  };
+  const openEdit = (c: Client) => {
+    setEditing(c);
+    setForm({ ...EMPTY, ...c });
+    setOpen(true);
+  };
 
   const save = async () => {
-    if (!form.name.trim()) { toast.error(t("clients.name_required")); return; }
+    if (!form.name.trim()) {
+      toast.error(t("clients.name_required"));
+      return;
+    }
     if (editing) {
       const { error } = await supabase.from("clients").update(form).eq("id", editing.id);
       if (error) return toast.error(error.message);
@@ -74,26 +107,70 @@ function ClientsPage() {
           </p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button onClick={openNew}><Plus className="size-4" /> {t("clients.new")}</Button></DialogTrigger>
+          <DialogTrigger asChild>
+            <Button onClick={openNew}>
+              <Plus className="size-4" /> {t("clients.new")}
+            </Button>
+          </DialogTrigger>
           <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle>{editing ? t("clients.edit") : t("clients.new")}</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>{editing ? t("clients.edit") : t("clients.new")}</DialogTitle>
+            </DialogHeader>
             <div className="grid gap-3">
-              <Field label={t("clients.name")} value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
-              <Field label={t("clients.contact")} value={form.contact_name ?? ""} onChange={(v) => setForm({ ...form, contact_name: v })} />
+              <Field
+                label={t("clients.name")}
+                value={form.name}
+                onChange={(v) => setForm({ ...form, name: v })}
+              />
+              <Field
+                label={t("clients.contact")}
+                value={form.contact_name ?? ""}
+                onChange={(v) => setForm({ ...form, contact_name: v })}
+              />
               <div className="grid grid-cols-2 gap-3">
-                <Field label={t("clients.email")} value={form.email ?? ""} onChange={(v) => setForm({ ...form, email: v })} />
-                <Field label={t("clients.phone")} value={form.phone ?? ""} onChange={(v) => setForm({ ...form, phone: v })} />
+                <Field
+                  label={t("clients.email")}
+                  value={form.email ?? ""}
+                  onChange={(v) => setForm({ ...form, email: v })}
+                />
+                <Field
+                  label={t("clients.phone")}
+                  value={form.phone ?? ""}
+                  onChange={(v) => setForm({ ...form, phone: v })}
+                />
               </div>
-              <Field label={t("clients.address")} value={form.address_line1 ?? ""} onChange={(v) => setForm({ ...form, address_line1: v })} />
-              <Field label={t("clients.address2")} value={form.address_line2 ?? ""} onChange={(v) => setForm({ ...form, address_line2: v })} />
+              <Field
+                label={t("clients.address")}
+                value={form.address_line1 ?? ""}
+                onChange={(v) => setForm({ ...form, address_line1: v })}
+              />
+              <Field
+                label={t("clients.address2")}
+                value={form.address_line2 ?? ""}
+                onChange={(v) => setForm({ ...form, address_line2: v })}
+              />
               <div className="grid grid-cols-3 gap-3">
-                <Field label={t("clients.postcode")} value={form.postcode ?? ""} onChange={(v) => setForm({ ...form, postcode: v })} />
-                <Field label={t("clients.city")} value={form.city ?? ""} onChange={(v) => setForm({ ...form, city: v })} />
-                <Field label={t("clients.country")} value={form.country ?? ""} onChange={(v) => setForm({ ...form, country: v })} />
+                <Field
+                  label={t("clients.postcode")}
+                  value={form.postcode ?? ""}
+                  onChange={(v) => setForm({ ...form, postcode: v })}
+                />
+                <Field
+                  label={t("clients.city")}
+                  value={form.city ?? ""}
+                  onChange={(v) => setForm({ ...form, city: v })}
+                />
+                <Field
+                  label={t("clients.country")}
+                  value={form.country ?? ""}
+                  onChange={(v) => setForm({ ...form, country: v })}
+                />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="ghost" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
+              <Button variant="ghost" onClick={() => setOpen(false)}>
+                {t("common.cancel")}
+              </Button>
               <Button onClick={save}>{t("common.save")}</Button>
             </DialogFooter>
           </DialogContent>
@@ -119,44 +196,79 @@ function ClientsPage() {
                 <td className="px-4 py-3">{c.city}</td>
                 <td className="px-4 py-3 text-muted-foreground">{c.email}</td>
                 <td className="px-4 py-3 text-right">
-                  <Button size="icon" variant="ghost" onClick={() => openEdit(c)}><Pencil className="size-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => del(c)}><Trash2 className="size-4" /></Button>
+                  <Button size="icon" variant="ghost" onClick={() => openEdit(c)}>
+                    <Pencil className="size-4" />
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={() => del(c)}>
+                    <Trash2 className="size-4" />
+                  </Button>
                 </td>
               </tr>
             ))}
-            {(data ?? []).length === 0 && <tr><td colSpan={5} className="text-center py-12 text-muted-foreground">{t("clients.empty")}</td></tr>}
+            {(data ?? []).length === 0 && (
+              <tr>
+                <td colSpan={5} className="text-center py-12 text-muted-foreground">
+                  {t("clients.empty")}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
 
       <div className="md:hidden space-y-3">
         {(data ?? []).length === 0 && (
-          <div className="text-center py-12 text-muted-foreground border rounded-xl bg-card">{t("clients.empty")}</div>
+          <div className="text-center py-12 text-muted-foreground border rounded-xl bg-card">
+            {t("clients.empty")}
+          </div>
         )}
         {(data ?? []).map((c) => (
           <div key={c.id} className="border rounded-xl bg-card p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <div className="font-semibold truncate">{c.name}</div>
-                {c.contact_name && <div className="text-sm text-muted-foreground truncate">{c.contact_name}</div>}
+                {c.contact_name && (
+                  <div className="text-sm text-muted-foreground truncate">{c.contact_name}</div>
+                )}
                 {c.city && <div className="text-xs text-muted-foreground mt-1">{c.city}</div>}
                 {c.email && <div className="text-xs text-muted-foreground truncate">{c.email}</div>}
                 {c.phone && <div className="text-xs text-muted-foreground">{c.phone}</div>}
               </div>
               <div className="flex flex-col gap-1 shrink-0">
-                <Button size="icon" variant="ghost" onClick={() => openEdit(c)} aria-label={t("clients.edit")}><Pencil className="size-4" /></Button>
-                <Button size="icon" variant="ghost" onClick={() => del(c)} aria-label={t("common.cancel")}><Trash2 className="size-4 text-destructive" /></Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => openEdit(c)}
+                  aria-label={t("clients.edit")}
+                >
+                  <Pencil className="size-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => del(c)}
+                  aria-label={t("common.cancel")}
+                >
+                  <Trash2 className="size-4 text-destructive" />
+                </Button>
               </div>
             </div>
           </div>
         ))}
       </div>
-
     </div>
   );
 }
 
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function Field({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
   return (
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>

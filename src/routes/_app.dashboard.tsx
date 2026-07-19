@@ -5,12 +5,38 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { fmtDate, fmtEUR, todayISO, type Locale } from "@/lib/format";
-import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, Copy, Download, FileText, Plus, Search, Sheet, TrendingUp, Wallet, Clock } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Copy,
+  Download,
+  FileText,
+  Plus,
+  Search,
+  Sheet,
+  TrendingUp,
+  Wallet,
+  Clock,
+} from "lucide-react";
 import { toast } from "sonner";
-import { generateDevisPdf, type PdfClient, type PdfDevis, type PdfLine, type PdfProfile } from "@/lib/pdf";
+import {
+  generateDevisPdf,
+  type PdfClient,
+  type PdfDevis,
+  type PdfLine,
+  type PdfProfile,
+} from "@/lib/pdf";
 
 export const Route = createFileRoute("/_app/dashboard")({
   component: Dashboard,
@@ -46,12 +72,23 @@ function Dashboard() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
-  type SortKey = "devis_number" | "client" | "issue_date" | "validity_until" | "total_ttc" | "status";
+  type SortKey =
+    | "devis_number"
+    | "client"
+    | "issue_date"
+    | "validity_until"
+    | "total_ttc"
+    | "status";
   const [sortKey, setSortKey] = useState<SortKey>("issue_date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const toggleSort = (k: SortKey) => {
     if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortKey(k); setSortDir(k === "total_ttc" || k === "issue_date" || k === "validity_until" ? "desc" : "asc"); }
+    else {
+      setSortKey(k);
+      setSortDir(
+        k === "total_ttc" || k === "issue_date" || k === "validity_until" ? "desc" : "asc",
+      );
+    }
   };
 
   useEffect(() => {
@@ -68,7 +105,9 @@ function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("devis")
-        .select("id, devis_number, issue_date, validity_until, total_ttc, status, client:clients(name)")
+        .select(
+          "id, devis_number, issue_date, validity_until, total_ttc, status, client:clients(name)",
+        )
         .order("issue_date", { ascending: false });
       if (error) throw error;
       return data as unknown as DevisRow[];
@@ -95,23 +134,29 @@ function Dashboard() {
       if (statusFilter !== "all" && d.status !== statusFilter) return false;
       if (!q) return true;
       return (
-        d.devis_number.toLowerCase().includes(q) ||
-        (d.client?.name ?? "").toLowerCase().includes(q)
+        d.devis_number.toLowerCase().includes(q) || (d.client?.name ?? "").toLowerCase().includes(q)
       );
     });
     const dir = sortDir === "asc" ? 1 : -1;
     const get = (d: DevisRow) => {
       switch (sortKey) {
-        case "client": return (d.client?.name ?? "").toLowerCase();
-        case "total_ttc": return Number(d.total_ttc);
-        case "devis_number": return d.devis_number;
-        case "status": return d.status;
-        case "validity_until": return d.validity_until;
-        default: return d.issue_date;
+        case "client":
+          return (d.client?.name ?? "").toLowerCase();
+        case "total_ttc":
+          return Number(d.total_ttc);
+        case "devis_number":
+          return d.devis_number;
+        case "status":
+          return d.status;
+        case "validity_until":
+          return d.validity_until;
+        default:
+          return d.issue_date;
       }
     };
     return [...arr].sort((a, b) => {
-      const va = get(a), vb = get(b);
+      const va = get(a),
+        vb = get(b);
       if (va < vb) return -1 * dir;
       if (va > vb) return 1 * dir;
       return 0;
@@ -129,7 +174,9 @@ function Dashboard() {
   const pipelineValue = rows
     .filter((d) => d.status === "draft" || d.status === "sent")
     .reduce((s, d) => s + Number(d.total_ttc), 0);
-  const sentCount = rows.filter((d) => d.status === "sent" || d.status === "accepted" || d.status === "declined").length;
+  const sentCount = rows.filter(
+    (d) => d.status === "sent" || d.status === "accepted" || d.status === "declined",
+  ).length;
   const acceptedCount = rows.filter((d) => d.status === "accepted").length;
   const winRate = sentCount > 0 ? Math.round((acceptedCount / sentCount) * 100) : 0;
   const readyToInvoice = rows.filter((d) => d.status === "accepted" && !invoicedDevisIds.has(d.id));
@@ -198,12 +245,14 @@ function Dashboard() {
   const downloadRow = async (devisId: string) => {
     const t0 = toast.loading("PDF…");
     try {
-      const [{ data: dev, error: dErr }, { data: lns, error: lErr }, { data: prof, error: pErr }] = await Promise.all([
-        supabase.from("devis").select("*, client:clients(*)").eq("id", devisId).maybeSingle(),
-        supabase.from("devis_lines").select("*").eq("devis_id", devisId).order("sort_order"),
-        supabase.from("business_profile").select("*").limit(1).maybeSingle(),
-      ]);
-      if (dErr || lErr || pErr || !dev || !prof) throw new Error(dErr?.message || lErr?.message || pErr?.message || "Missing data");
+      const [{ data: dev, error: dErr }, { data: lns, error: lErr }, { data: prof, error: pErr }] =
+        await Promise.all([
+          supabase.from("devis").select("*, client:clients(*)").eq("id", devisId).maybeSingle(),
+          supabase.from("devis_lines").select("*").eq("devis_id", devisId).order("sort_order"),
+          supabase.from("business_profile").select("*").limit(1).maybeSingle(),
+        ]);
+      if (dErr || lErr || pErr || !dev || !prof)
+        throw new Error(dErr?.message || lErr?.message || pErr?.message || "Missing data");
       const pdfDevis: PdfDevis = {
         devis_number: dev.devis_number,
         issue_date: dev.issue_date,
@@ -251,23 +300,55 @@ function Dashboard() {
     try {
       const { data: numData, error: nErr } = await supabase.rpc("next_devis_number");
       if (nErr) throw nErr;
-      const { data: src, error: sErr } = await supabase.from("devis").select("*").eq("id", devisId).maybeSingle();
+      const { data: src, error: sErr } = await supabase
+        .from("devis")
+        .select("*")
+        .eq("id", devisId)
+        .maybeSingle();
       if (sErr || !src) throw new Error(sErr?.message || "Missing devis");
-      const { id: _id, devis_number: _n, created_at: _c, updated_at: _u, share_token: _st, share_expires_at: _se, sent_at: _sa, last_email_error: _le, ...header } = src as any;
+      const {
+        id: _id,
+        devis_number: _n,
+        created_at: _c,
+        updated_at: _u,
+        share_token: _st,
+        share_expires_at: _se,
+        sent_at: _sa,
+        last_email_error: _le,
+        ...header
+      } = src as any;
       const issue = todayISO();
       const until = new Date(issue);
-      const validity = Math.max(1, Math.round((new Date(src.validity_until).getTime() - new Date(src.issue_date).getTime()) / 86400000) || 90);
+      const validity = Math.max(
+        1,
+        Math.round(
+          (new Date(src.validity_until).getTime() - new Date(src.issue_date).getTime()) / 86400000,
+        ) || 90,
+      );
       until.setDate(until.getDate() + validity);
       const { data: created, error: iErr } = await supabase
         .from("devis")
-        .insert({ ...header, devis_number: numData as string, issue_date: issue, validity_until: until.toISOString().slice(0, 10), status: "draft" })
+        .insert({
+          ...header,
+          devis_number: numData as string,
+          issue_date: issue,
+          validity_until: until.toISOString().slice(0, 10),
+          status: "draft",
+        })
         .select("id")
         .single();
       if (iErr || !created) throw new Error(iErr?.message || "Insert failed");
-      const { data: lines, error: lErr } = await supabase.from("devis_lines").select("*").eq("devis_id", devisId).order("sort_order");
+      const { data: lines, error: lErr } = await supabase
+        .from("devis_lines")
+        .select("*")
+        .eq("devis_id", devisId)
+        .order("sort_order");
       if (lErr) throw lErr;
       if (lines && lines.length) {
-        const newLines = lines.map(({ id: _lid, devis_id: _did, ...rest }: any) => ({ ...rest, devis_id: created.id }));
+        const newLines = lines.map(({ id: _lid, devis_id: _did, ...rest }: any) => ({
+          ...rest,
+          devis_id: created.id,
+        }));
         const { error: liErr } = await supabase.from("devis_lines").insert(newLines);
         if (liErr) throw liErr;
       }
@@ -324,7 +405,10 @@ function Dashboard() {
           value={String(expiringSoon.length)}
           sub={
             expiringSoon.length
-              ? fmtEUR(expiringSoon.reduce((s, d) => s + Number(d.total_ttc), 0), lang)
+              ? fmtEUR(
+                  expiringSoon.reduce((s, d) => s + Number(d.total_ttc), 0),
+                  lang,
+                )
               : "—"
           }
           accent={expiringSoon.length > 0}
@@ -336,17 +420,25 @@ function Dashboard() {
         <ActionList
           title={lang === "en" ? "Expiring soon" : "Expirent bientôt"}
           icon={<AlertTriangle className="size-4 text-amber-600" />}
-          empty={lang === "en" ? "Nothing expiring in 14 days." : "Aucun devis n'expire dans 14 jours."}
+          empty={
+            lang === "en" ? "Nothing expiring in 14 days." : "Aucun devis n'expire dans 14 jours."
+          }
           items={expiringSoon.slice(0, 6).map((d) => ({
             id: d.id,
             primary: d.client?.name ?? d.devis_number,
             secondary: d.devis_number,
             right: (
               <div className="text-right">
-                <div className="text-xs text-muted-foreground">{fmtDate(d.validity_until, lang)}</div>
-                <div className={`text-xs font-medium ${d.daysLeft <= 3 ? "text-rose-600" : "text-amber-600"}`}>
+                <div className="text-xs text-muted-foreground">
+                  {fmtDate(d.validity_until, lang)}
+                </div>
+                <div
+                  className={`text-xs font-medium ${d.daysLeft <= 3 ? "text-rose-600" : "text-amber-600"}`}
+                >
                   {d.daysLeft === 0
-                    ? lang === "en" ? "today" : "aujourd'hui"
+                    ? lang === "en"
+                      ? "today"
+                      : "aujourd'hui"
                     : `${d.daysLeft}${lang === "en" ? "d" : "j"}`}
                 </div>
               </div>
@@ -357,7 +449,11 @@ function Dashboard() {
         <ActionList
           title={lang === "en" ? "Ready to invoice" : "À facturer"}
           icon={<FileText className="size-4 text-emerald-600" />}
-          empty={lang === "en" ? "No accepted devis awaiting invoicing." : "Aucun devis accepté à facturer."}
+          empty={
+            lang === "en"
+              ? "No accepted devis awaiting invoicing."
+              : "Aucun devis accepté à facturer."
+          }
           items={readyToInvoice.slice(0, 6).map((d) => ({
             id: d.id,
             primary: d.client?.name ?? d.devis_number,
@@ -380,14 +476,23 @@ function Dashboard() {
           <div className="flex items-end gap-1.5 h-32">
             {chart.map((m) => (
               <div key={m.key} className="flex-1 flex flex-col items-center gap-1 group">
-                <div className="w-full flex items-end justify-center gap-0.5 flex-1" title={`${m.label} — ${lang === "en" ? "Issued" : "Émis"}: ${fmtEUR(m.issued, lang)} · ${lang === "en" ? "Accepted" : "Acceptés"}: ${fmtEUR(m.accepted, lang)}`}>
+                <div
+                  className="w-full flex items-end justify-center gap-0.5 flex-1"
+                  title={`${m.label} — ${lang === "en" ? "Issued" : "Émis"}: ${fmtEUR(m.issued, lang)} · ${lang === "en" ? "Accepted" : "Acceptés"}: ${fmtEUR(m.accepted, lang)}`}
+                >
                   <div
                     className="w-1/2 bg-muted rounded-t"
-                    style={{ height: `${(m.issued / chartMax) * 100}%`, minHeight: m.issued > 0 ? 2 : 0 }}
+                    style={{
+                      height: `${(m.issued / chartMax) * 100}%`,
+                      minHeight: m.issued > 0 ? 2 : 0,
+                    }}
                   />
                   <div
                     className="w-1/2 bg-primary rounded-t"
-                    style={{ height: `${(m.accepted / chartMax) * 100}%`, minHeight: m.accepted > 0 ? 2 : 0 }}
+                    style={{
+                      height: `${(m.accepted / chartMax) * 100}%`,
+                      minHeight: m.accepted > 0 ? 2 : 0,
+                    }}
                   />
                 </div>
                 <div className="text-[10px] text-muted-foreground">{m.label}</div>
@@ -395,8 +500,14 @@ function Dashboard() {
             ))}
           </div>
           <div className="flex items-center gap-3 mt-3 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5"><span className="size-2 rounded-sm bg-muted inline-block" /> {lang === "en" ? "Issued" : "Émis"}</span>
-            <span className="flex items-center gap-1.5"><span className="size-2 rounded-sm bg-primary inline-block" /> {lang === "en" ? "Accepted" : "Acceptés"}</span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2 rounded-sm bg-muted inline-block" />{" "}
+              {lang === "en" ? "Issued" : "Émis"}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2 rounded-sm bg-primary inline-block" />{" "}
+              {lang === "en" ? "Accepted" : "Acceptés"}
+            </span>
           </div>
         </div>
       </div>
@@ -412,7 +523,9 @@ function Dashboard() {
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-44">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("dashboard.all_statuses")}</SelectItem>
             <SelectItem value="draft">{t("status.draft")}</SelectItem>
@@ -436,32 +549,88 @@ function Dashboard() {
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <SortableTh label={t("dashboard.col_number")} k="devis_number" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-              <SortableTh label={t("dashboard.col_client")} k="client" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-              <SortableTh label={t("dashboard.col_issue")} k="issue_date" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-              <SortableTh label={t("dashboard.col_validity")} k="validity_until" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-              <SortableTh label={t("dashboard.col_total")} k="total_ttc" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
-              <SortableTh label={t("dashboard.col_status")} k="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+              <SortableTh
+                label={t("dashboard.col_number")}
+                k="devis_number"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onClick={toggleSort}
+              />
+              <SortableTh
+                label={t("dashboard.col_client")}
+                k="client"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onClick={toggleSort}
+              />
+              <SortableTh
+                label={t("dashboard.col_issue")}
+                k="issue_date"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onClick={toggleSort}
+              />
+              <SortableTh
+                label={t("dashboard.col_validity")}
+                k="validity_until"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onClick={toggleSort}
+              />
+              <SortableTh
+                label={t("dashboard.col_total")}
+                k="total_ttc"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onClick={toggleSort}
+                align="right"
+              />
+              <SortableTh
+                label={t("dashboard.col_status")}
+                k="status"
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onClick={toggleSort}
+              />
               <th className="px-4 py-3 w-24"></th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={7} className="text-center py-12 text-muted-foreground">{t("dashboard.empty")}</td></tr>
+              <tr>
+                <td colSpan={7} className="text-center py-12 text-muted-foreground">
+                  {t("dashboard.empty")}
+                </td>
+              </tr>
             )}
             {filtered.map((d) => (
-              <tr key={d.id} className="border-t hover:bg-muted/30 cursor-pointer" onClick={() => navigate({ to: "/devis/$id", params: { id: d.id } })}>
+              <tr
+                key={d.id}
+                className="border-t hover:bg-muted/30 cursor-pointer"
+                onClick={() => navigate({ to: "/devis/$id", params: { id: d.id } })}
+              >
                 <td className="px-4 py-3 font-mono text-xs">
-                  <Link to="/devis/$id" params={{ id: d.id }} className="hover:underline">{d.devis_number}</Link>
+                  <Link to="/devis/$id" params={{ id: d.id }} className="hover:underline">
+                    {d.devis_number}
+                  </Link>
                 </td>
-                <td className="px-4 py-3">{d.client?.name ?? <span className="text-muted-foreground">—</span>}</td>
+                <td className="px-4 py-3">
+                  {d.client?.name ?? <span className="text-muted-foreground">—</span>}
+                </td>
                 <td className="px-4 py-3">{fmtDate(d.issue_date, lang)}</td>
                 <td className="px-4 py-3">{fmtDate(d.validity_until, lang)}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{fmtEUR(Number(d.total_ttc), lang)}</td>
-                <td className="px-4 py-3">
-                  <Badge className={STATUS_STYLES[d.status]} variant="secondary">{t(`status.${d.status}`)}</Badge>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  {fmtEUR(Number(d.total_ttc), lang)}
                 </td>
-                <td className="px-2 py-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                <td className="px-4 py-3">
+                  <Badge className={STATUS_STYLES[d.status]} variant="secondary">
+                    {t(`status.${d.status}`)}
+                  </Badge>
+                </td>
+                <td
+                  className="px-2 py-3 text-right whitespace-nowrap"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <Button
                     variant="ghost"
                     size="icon"
@@ -490,7 +659,9 @@ function Dashboard() {
       {/* Mobile card list */}
       <div className="md:hidden space-y-3">
         {filtered.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground border rounded-xl bg-card">{t("dashboard.empty")}</div>
+          <div className="text-center py-12 text-muted-foreground border rounded-xl bg-card">
+            {t("dashboard.empty")}
+          </div>
         )}
         {filtered.map((d) => (
           <div
@@ -503,7 +674,9 @@ function Dashboard() {
                 <div className="font-mono text-xs text-muted-foreground">{d.devis_number}</div>
                 <div className="font-medium truncate">{d.client?.name ?? "—"}</div>
               </div>
-              <Badge className={STATUS_STYLES[d.status]} variant="secondary">{t(`status.${d.status}`)}</Badge>
+              <Badge className={STATUS_STYLES[d.status]} variant="secondary">
+                {t(`status.${d.status}`)}
+              </Badge>
             </div>
             <div className="mt-3 flex items-end justify-between gap-3">
               <div className="text-xs text-muted-foreground">
@@ -511,7 +684,9 @@ function Dashboard() {
                 <div>→ {fmtDate(d.validity_until, lang)}</div>
               </div>
               <div className="text-right">
-                <div className="text-lg font-semibold tabular-nums">{fmtEUR(Number(d.total_ttc), lang)}</div>
+                <div className="text-lg font-semibold tabular-nums">
+                  {fmtEUR(Number(d.total_ttc), lang)}
+                </div>
               </div>
             </div>
             <div className="mt-3 flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
@@ -525,7 +700,6 @@ function Dashboard() {
           </div>
         ))}
       </div>
-
     </div>
   );
 }
@@ -640,20 +814,25 @@ function exportCsv(
   }[],
   lang: "en" | "fr",
 ) {
-  const header = lang === "en"
-    ? ["Number", "Client", "Issued", "Valid until", "Total TTC (EUR)", "Status"]
-    : ["Numéro", "Client", "Émis le", "Valide jusqu'au", "Total TTC (EUR)", "Statut"];
+  const header =
+    lang === "en"
+      ? ["Number", "Client", "Issued", "Valid until", "Total TTC (EUR)", "Status"]
+      : ["Numéro", "Client", "Émis le", "Valide jusqu'au", "Total TTC (EUR)", "Statut"];
   const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
   const lines = [header.map(esc).join(",")];
   for (const r of rows) {
-    lines.push([
-      r.devis_number,
-      r.client?.name ?? "",
-      r.issue_date,
-      r.validity_until,
-      Number(r.total_ttc).toFixed(2),
-      r.status,
-    ].map((v) => esc(String(v))).join(","));
+    lines.push(
+      [
+        r.devis_number,
+        r.client?.name ?? "",
+        r.issue_date,
+        r.validity_until,
+        Number(r.total_ttc).toFixed(2),
+        r.status,
+      ]
+        .map((v) => esc(String(v)))
+        .join(","),
+    );
   }
   const csv = "\uFEFF" + lines.join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
