@@ -514,7 +514,10 @@ function Dashboard() {
                 <div className="text-lg font-semibold tabular-nums">{fmtEUR(Number(d.total_ttc), lang)}</div>
               </div>
             </div>
-            <div className="mt-3 flex justify-end" onClick={(e) => e.stopPropagation()}>
+            <div className="mt-3 flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+              <Button variant="outline" size="sm" onClick={() => duplicateRow(d.id)}>
+                <Copy className="size-4" /> {lang === "en" ? "Duplicate" : "Dupliquer"}
+              </Button>
               <Button variant="outline" size="sm" onClick={() => downloadRow(d.id)}>
                 <Download className="size-4" /> {t("devis.pdf")}
               </Button>
