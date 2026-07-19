@@ -389,6 +389,13 @@ function Dashboard() {
             <SelectItem value="expired">{t("status.expired")}</SelectItem>
           </SelectContent>
         </Select>
+        <Button
+          variant="outline"
+          onClick={() => exportCsv(filtered, lang)}
+          disabled={filtered.length === 0}
+        >
+          <Sheet className="size-4" /> {lang === "en" ? "Export CSV" : "Exporter CSV"}
+        </Button>
       </div>
 
       {/* Desktop table */}
@@ -396,12 +403,12 @@ function Dashboard() {
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="text-left px-4 py-3">{t("dashboard.col_number")}</th>
-              <th className="text-left px-4 py-3">{t("dashboard.col_client")}</th>
-              <th className="text-left px-4 py-3">{t("dashboard.col_issue")}</th>
-              <th className="text-left px-4 py-3">{t("dashboard.col_validity")}</th>
-              <th className="text-right px-4 py-3">{t("dashboard.col_total")}</th>
-              <th className="text-left px-4 py-3">{t("dashboard.col_status")}</th>
+              <SortableTh label={t("dashboard.col_number")} k="devis_number" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+              <SortableTh label={t("dashboard.col_client")} k="client" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+              <SortableTh label={t("dashboard.col_issue")} k="issue_date" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+              <SortableTh label={t("dashboard.col_validity")} k="validity_until" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+              <SortableTh label={t("dashboard.col_total")} k="total_ttc" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+              <SortableTh label={t("dashboard.col_status")} k="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
               <th className="px-4 py-3 w-12"></th>
             </tr>
           </thead>
