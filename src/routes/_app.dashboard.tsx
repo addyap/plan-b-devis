@@ -442,7 +442,7 @@ function Dashboard() {
               <SortableTh label={t("dashboard.col_validity")} k="validity_until" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
               <SortableTh label={t("dashboard.col_total")} k="total_ttc" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
               <SortableTh label={t("dashboard.col_status")} k="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-              <th className="px-4 py-3 w-12"></th>
+              <th className="px-4 py-3 w-24"></th>
             </tr>
           </thead>
           <tbody>
