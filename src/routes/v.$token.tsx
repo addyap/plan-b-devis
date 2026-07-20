@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import brandLogo from "@/assets/plan-b-logo.png";
-import { L, type Lang } from "@/lib/i18n";
+import { L, LEGAL_MENTIONS, type Lang, type LegalMentionKey } from "@/lib/i18n";
 import { Download, Loader2 } from "lucide-react";
 import {
   generateDevisPdf,
@@ -267,24 +267,8 @@ const PAYMENT_TERMS_LABELS: Record<string, { fr: string; en: string }> = {
   custom: { fr: "Conditions personnalisées", en: "Custom terms" },
 };
 
-const LEGAL_MENTION_LABELS: Record<string, { fr: string; en: string }> = {
-  free: {
-    fr: "Devis gratuit, non contractuel jusqu'à acceptation signée.",
-    en: "Free quote, non-binding until signed acceptance.",
-  },
-  vat293b: {
-    fr: "TVA non applicable, article 293 B du CGI.",
-    en: "VAT not applicable, article 293 B of the French CGI.",
-  },
-  late: {
-    fr: "Pénalités de retard : 3 fois le taux d'intérêt légal. Indemnité forfaitaire pour frais de recouvrement : 40 €.",
-    en: "Late payment penalties: three times the legal interest rate. Fixed recovery cost indemnity: €40.",
-  },
-  discount: {
-    fr: "Pas d'escompte pour règlement anticipé.",
-    en: "No discount for early payment.",
-  },
-};
+// Canonical text lives in @/lib/i18n (LEGAL_MENTIONS) so this page and the
+// generated PDF always show the same wording for the same checkboxes.
 
 // ---------- Component ----------
 
@@ -446,6 +430,7 @@ function PublicDevisView() {
         honoraires_ht: honorairesHT,
         honoraires_pct: honorairesPct,
         payment_schedule: schedule,
+        legal_mentions: devis.legal_mentions as LegalMentionKey[],
       };
       const pdfClient: PdfClient = client
         ? {
@@ -861,7 +846,7 @@ function PublicDevisView() {
               {tt("legal", lang)}
             </div>
             {devis.legal_mentions.map((k) => (
-              <p key={k}>{LEGAL_MENTION_LABELS[k]?.[lang] ?? k}</p>
+              <p key={k}>{LEGAL_MENTIONS[k as LegalMentionKey]?.[lang] ?? k}</p>
             ))}
           </section>
         )}

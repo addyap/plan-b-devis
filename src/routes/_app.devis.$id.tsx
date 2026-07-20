@@ -46,6 +46,7 @@ import {
   type PdfDevis,
   type PdfLine,
 } from "@/lib/pdf";
+import type { LegalMentionKey } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_app/devis/$id")({
   component: DevisEditor,
@@ -646,6 +647,7 @@ function DevisEditor() {
             ? +((Number(r.value || 0) / totals.totalTTC) * 100).toFixed(1)
             : 0,
     })),
+    legal_mentions: devis.legal_mentions as LegalMentionKey[],
   };
 
   const pdfLines: PdfLine[] = linesView.map((l) => ({

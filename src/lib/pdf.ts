@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { supabase } from "@/integrations/supabase/client";
-import { L, type Lang } from "@/lib/i18n";
+import { L, LEGAL_MENTIONS, type Lang, type LegalMentionKey } from "@/lib/i18n";
 // Inline the brand logo at build time so the PDF can embed it without any
 // network fetch (avoids cross-origin / CORS issues when drawing into jsPDF).
 import brandLogoDataUrl from "@/assets/plan-b-logo.png?inline";
@@ -81,6 +81,7 @@ export type PdfDevis = {
   honoraires_ht?: number;
   honoraires_pct?: number;
   payment_schedule?: SchedulePdfRow[];
+  legal_mentions?: LegalMentionKey[];
 };
 
 export type PdfFacture = {
@@ -190,6 +191,7 @@ type CommonInput = {
   honorairesHt?: number;
   honorairesPct?: number;
   paymentSchedule?: SchedulePdfRow[];
+  legalMentions?: LegalMentionKey[];
 };
 
 async function buildPdf(
@@ -510,6 +512,28 @@ async function buildPdf(
     });
     y += 3;
   };
+  if (input.kind === "devis" && input.legalMentions && input.legalMentions.length) {
+    ensureSpace(14);
+    doc
+      .setFont("helvetica", "bold")
+      .setFontSize(8)
+      .setTextColor(...NAVY);
+    doc.text(L.legalTitle[lang].toUpperCase(), M, y);
+    y += 4;
+    doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(40);
+    for (const key of input.legalMentions) {
+      const text = LEGAL_MENTIONS[key]?.[lang];
+      if (!text) continue;
+      const wrapped = doc.splitTextToSize(text, pageW - M * 2);
+      ensureSpace(wrapped.length * 4.2 + 2);
+      wrapped.forEach((ln: string) => {
+        doc.text(ln, M, y);
+        y += 4.2;
+      });
+      y += 1;
+    }
+    y += 2;
+  }
   sec(L.paymentTerms[lang], profile.default_payment_terms || "");
   sec(L.latePenalty[lang], profile.late_penalty_terms || "");
   if (input.kind === "devis") {
@@ -618,6 +642,7 @@ export async function generateDevisPdf(
       honorairesHt: devis.honoraires_ht ?? 0,
       honorairesPct: devis.honoraires_pct ?? 0,
       paymentSchedule: devis.payment_schedule ?? [],
+      legalMentions: devis.legal_mentions ?? [],
     },
     profile,
     client,

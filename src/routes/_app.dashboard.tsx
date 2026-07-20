@@ -395,7 +395,7 @@ function Dashboard() {
           icon={<Wallet className="size-4" />}
           label={lang === "en" ? "Pipeline (draft + sent)" : "Pipeline (brouillon + envoyé)"}
           value={fmtEUR(pipelineValue, lang)}
-          sub={`${rows.filter((d) => d.status === "draft" || d.status === "sent").length} ${lang === "en" ? "devis" : "devis"}`}
+          sub={`${rows.filter((d) => d.status === "draft" || d.status === "sent").length} ${lang === "en" ? "quotes" : "devis"}`}
         />
         <KpiCard
           icon={<TrendingUp className="size-4" />}
@@ -407,7 +407,7 @@ function Dashboard() {
           icon={<FileText className="size-4" />}
           label={lang === "en" ? "Ready to invoice" : "À facturer"}
           value={fmtEUR(readyToInvoiceTotal, lang)}
-          sub={`${readyToInvoice.length} ${lang === "en" ? "devis accepted" : "devis acceptés"}`}
+          sub={`${readyToInvoice.length} ${lang === "en" ? "quotes accepted" : "devis acceptés"}`}
           accent={readyToInvoice.length > 0}
         />
         <KpiCard

@@ -53,6 +53,8 @@ Deno.serve(async (req) => {
       lang === "fr"
         ? `Bonjour,\n\nVeuillez trouver ci-joint la facture Nº ${num}.\nN'hésitez pas à me contacter pour toute question.\n\nCordialement,\n${tradingName}`
         : `Hello,\n\nPlease find attached invoice No. ${num}.\nFeel free to reach out with any questions.\n\nBest regards,\n${tradingName}`;
+    const subject =
+      lang === "fr" ? `Facture Nº ${num} — ${tradingName}` : `Invoice No. ${num} — ${tradingName}`;
 
     const resp = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -60,7 +62,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: `${tradingName} <${sender}>`,
         to: [to],
-        subject: `Facture Nº ${num} — ${tradingName}`,
+        subject,
         text: body,
         attachments: [{ filename: filename || `${num}.pdf`, content: pdf_base64 }],
       }),

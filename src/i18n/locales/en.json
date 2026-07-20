@@ -278,7 +278,7 @@
     "summary_total_ttc": "Total (incl. VAT)",
     "summary_deposit_ask": "Requested deposit",
     "summary_deposit_due": "Deposit due",
-    "summary_balance": "Balance on delivery",
+    "summary_balance": "Balance on completion",
     "library_title": "Service library",
     "library_empty": "No saved services.",
     "preview_title": "Quote preview",

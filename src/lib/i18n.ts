@@ -55,6 +55,31 @@ export const L = {
   paymentSchedule: { en: "Payment schedule", fr: "Échéancier de paiement" },
   milestone: { en: "Milestone", fr: "Jalon" },
   amount: { en: "Amount", fr: "Montant" },
+  legalTitle: { en: "Legal notices", fr: "Mentions légales" },
+};
+
+export type LegalMentionKey = "free" | "vat293b" | "late" | "discount";
+
+// Canonical wording for the per-devis legal-mention checklist. Shared by the
+// PDF generator and the public /v/$token page so both show the same text for
+// whatever the devis editor has checked.
+export const LEGAL_MENTIONS: Record<LegalMentionKey, { en: string; fr: string }> = {
+  free: {
+    fr: "Devis gratuit, non contractuel jusqu'à acceptation signée.",
+    en: "Free quote, non-binding until signed acceptance.",
+  },
+  vat293b: {
+    fr: "TVA non applicable, article 293 B du CGI.",
+    en: "VAT not applicable, article 293 B of the French CGI.",
+  },
+  late: {
+    fr: "Pénalités de retard : 3 fois le taux d'intérêt légal. Indemnité forfaitaire pour frais de recouvrement : 40 €.",
+    en: "Late payment penalties: three times the legal interest rate. Fixed recovery cost indemnity: €40.",
+  },
+  discount: {
+    fr: "Pas d'escompte pour règlement anticipé.",
+    en: "No discount for early payment.",
+  },
 };
 
 export function t(key: keyof typeof L, lang: Lang) {
