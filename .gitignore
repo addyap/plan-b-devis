@@ -21,11 +21,10 @@ dist-ssr
 .wrangler/
 .dev.vars
 
-# Local env overrides. NOTE: .env itself is intentionally committed — it holds
-# only the Supabase publishable (anon) keys, which ship to the browser anyway,
-# and the Vercel build inlines VITE_* from it at build time. Never put a
-# service-role key or any other secret in .env — use .env.local (ignored here)
-# for local secrets, and the Vercel dashboard for deployed ones.
+# Env files. Deployed values live in the Vercel project's environment
+# variables; Vite's loadEnv picks VITE_* up from process.env at build time.
+# Keep a local .env for `bun run dev` — it is never committed.
+.env
 .env.local
 .env.*.local
 
